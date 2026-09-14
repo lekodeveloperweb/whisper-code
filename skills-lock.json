@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "skills": {
+    "brainstorming": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/brainstorming/SKILL.md",
+      "computedHash": "70e7d85feeb79fd150465f11691c9091234bfa56734076921a4424e387b854c1"
+    },
+    "executing-plans": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/executing-plans/SKILL.md",
+      "computedHash": "8ef189ad226936a68510cea5b015bc01aacac1af9cb6cabf6473936e3d83a2d1"
+    },
+    "finishing-a-development-branch": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/finishing-a-development-branch/SKILL.md",
+      "computedHash": "4f571e7befb8b0946d9d7770232c818812412e9ab1dfb811f847edfba1fc6275"
+    },
+    "receiving-code-review": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/receiving-code-review/SKILL.md",
+      "computedHash": "59361179fc9225173e0c145ffd9bafbf9fdbf8b43ce3dc308497a0b4f83a6063"
+    },
+    "requesting-code-review": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/requesting-code-review/SKILL.md",
+      "computedHash": "004f340ae65811095d6a9bb0a759c87d0a8085c5e705dbb019b011626293d2e9"
+    },
+    "systematic-debugging": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/systematic-debugging/SKILL.md",
+      "computedHash": "b5e4ebe02cc01ad69a987d01230562053d77a93938eefea7bbd0e4abffdfd98d"
+    },
+    "test-driven-development": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/test-driven-development/SKILL.md",
+      "computedHash": "a4126a9c5f17be3c228aa9e5755898ade283448b86099f56f40852e8c14532be"
+    },
+    "using-git-worktrees": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/using-git-worktrees/SKILL.md",
+      "computedHash": "48c8a1040e378e0cb7208107294e3afa9067b9370c3f33b49a443eb6b7528b0d"
+    },
+    "verification-before-completion": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/verification-before-completion/SKILL.md",
+      "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
+    },
+    "writing-plans": {
+      "source": "lekodeveloperweb/extrapowers",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "engineering/superpowers/writing-plans/SKILL.md",
+      "computedHash": "5715e118f739dd2f30dfb5f6b62002d9b7dcb7fd328c144da6cd5d0ef6f31538"
+    }
+  }
+}
