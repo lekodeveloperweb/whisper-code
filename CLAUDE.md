@@ -55,11 +55,13 @@ make all
 ## Type Checking
 
 All source files are fully type annotated. mypy runs with strict settings:
+
 - `disallow_untyped_defs = true` — all functions must have type hints
 - `warn_return_any = true` — no returning `Any` from typed functions
 - `check_untyped_defs = true` — check untyped function definitions
 
 Key typing patterns:
+
 - `ConfigManager.get(key)` returns `Any` (can be `None`, `str`, `int`, `bool`)
 - `TextInjector.inject_text(text: str | None)` accepts `None` safely
 - `AudioRecorder` uses `int` for `sample_rate`, `float` for `rms`
@@ -74,6 +76,7 @@ Pre-commit hooks run `ruff` + `mypy` automatically on every commit.
 WhisperCodeApp (`src/whisper_code/cli.py:17`) owns the lifecycle. On startup it loads config, instantiates all core components, then calls `setup()` to start the hotkey listener, then starts the PyQt event loop (`app.exec_()`).
 
 Entry points:
+
 - `uv run whisper` → `src.whisper_code.__main__:main` (console script, `pyproject.toml`)
 - `uv run python -m src.whisper_code` → `src.whisper_code.__main__.main()` (module entry, calls `cli.main()`)
 - `main()` function calls `app = WhisperCodeApp()` then `app.run()`
@@ -98,8 +101,9 @@ Key design decisions:
 - Virtual env in `.venv/`. Lock file at `uv.lock`.
 - PRD in `docs/PRD.md`.
 - Console script: `whisper` (defined in `pyproject.toml`, points to `src.whisper_code.__main__:main`).
-- Config keys: `api_url`, `model_name`, `hotkey`, `auto_insert`, `sample_rate`, `use_grammar_check`, `grammar_model`.
-- Env var overrides: `WHISPER_API_URL`, `WHISPER_MODEL_NAME`, `WHISPER_HOTKEY`, `WHISPER_AUTO_INSERT`, `WHISPER_SAMPLE_RATE`, `WHISPER_GRAMMAR_CHECK`, `WHISPER_GRAMMAR_MODEL`.
+- Config keys: `stt_api_url`, `stt_api_key`, `llm_api_url`, `llm_api_key`, `model_name`, `model_quality`, `hotkey`, `auto_insert`, `sample_rate`, `use_grammar_check`, `grammar_model`.
+- Env var overrides: `WHISPER_STT_API_URL`, `WHISPER_STT_API_KEY`, `WHISPER_LLM_API_URL`, `WHISPER_LLM_API_KEY`, `WHISPER_MODEL_NAME`, `WHISPER_MODEL_QUALITY`, `WHISPER_HOTKEY`, `WHISPER_AUTO_INSERT`, `WHISPER_SAMPLE_RATE`, `WHISPER_GRAMMAR_CHECK`, `WHISPER_GRAMMAR_MODEL`, `WHISPER_SILENCE_THRESHOLD`, `WHISPER_VOICE_COMMANDS`.
+- `llm_api_url` unset/empty falls back to `stt_api_url` (single source of truth: `ConfigManager.resolved_llm_url()`). Empty keys send no Authorization header. BREAKING (v1.1): `api_url`/`WHISPER_API_URL` were removed — rename to `stt_api_url`/`WHISPER_STT_API_URL`.
 - Pre-commit hooks: `ruff` (lint) + `mypy` (type check) run automatically on commit.
 - Makefile targets: `make lint`, `make typecheck`, `make test`, `make all`.
 
@@ -110,6 +114,7 @@ This project has a knowledge graph at graphify-out/ with god nodes, community st
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
 
 Rules:
+
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
 - Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.

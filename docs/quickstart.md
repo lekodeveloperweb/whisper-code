@@ -48,13 +48,13 @@ Settings are stored in `~/.config/whisper-code/settings.json`. Edit it to match 
 
 ```json
 {
-    "api_url": "http://localhost:8080",
-    "model_name": "whisper-large-v3",
-    "hotkey": "Cmd+Ctrl+T",
-    "auto_insert": true,
-    "sample_rate": 16000,
-    "use_grammar_check": true,
-    "grammar_model": "gemma4-e4b-8b"
+  "stt_api_url": "http://localhost:8080",
+  "model_name": "whisper-large-v3",
+  "hotkey": "Cmd+Ctrl+T",
+  "auto_insert": true,
+  "sample_rate": 16000,
+  "use_grammar_check": true,
+  "grammar_model": "gemma4-e4b-8b"
 }
 ```
 

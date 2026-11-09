@@ -55,13 +55,13 @@ Settings are stored in `~/.config/whisper-code/settings.json`. It is created aut
 
 ```json
 {
-    "api_url": "http://localhost:8080",
-    "model_name": "whisper-large-v3",
-    "sample_rate": 16000
+  "stt_api_url": "http://localhost:8080",
+  "model_name": "whisper-large-v3",
+  "sample_rate": 16000
 }
 ```
 
-- **api_url**: Base URL of your local oMLX/OpenAI server.
+- **stt_api_url**: Base URL of your local oMLX/OpenAI server.
 - **model_name**: The model identifier (default: `whisper-large-v3`).
 
 ---
@@ -99,9 +99,9 @@ Each version bump creates a git tag (`vX.Y.Z`) and updates `CHANGELOG.md`.
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------| :--- |
-| `ModuleNotFoundError` | Ensure you ran `uv sync` and are using `uv run main.py`. |
-| Hotkey not working | Verify **Accessibility** permissions for your terminal. |
-| No text injected | Ensure the application you want to type in is focused before/during dictation. |
-| API Error | Ensure your oMLX server is running at the URL specified in settings. |
+| Issue                 | Solution                                                                       |
+| --------------------- | :----------------------------------------------------------------------------- |
+| `ModuleNotFoundError` | Ensure you ran `uv sync` and are using `uv run main.py`.                       |
+| Hotkey not working    | Verify **Accessibility** permissions for your terminal.                        |
+| No text injected      | Ensure the application you want to type in is focused before/during dictation. |
+| API Error             | Ensure your oMLX server is running at the URL specified in settings.           |
