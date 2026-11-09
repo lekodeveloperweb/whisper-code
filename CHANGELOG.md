@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-11-09
+
+### Added
+
+- **Split STT and LLM server configuration.** The transcription path and the
+  grammar-check path can now target different OpenAI-compatible servers via
+  four config keys: `stt_api_url`, `stt_api_key`, `llm_api_url`,
+  `llm_api_key`, each overridable by `WHISPER_STT_API_URL`,
+  `WHISPER_STT_API_KEY`, `WHISPER_LLM_API_URL`, `WHISPER_LLM_API_KEY`.
+  `llm_api_url` unset or empty falls back to `stt_api_url`
+  (`ConfigManager.resolved_llm_url()`), so single-server setups need no new
+  config.
+- **Per-server Bearer auth.** When a key is set, both the transcription and
+  grammar requests send `Authorization: Bearer <key>`. An empty or absent key
+  sends no `Authorization` header, keeping local no-auth servers working.
+- **Settings dialog regrouped** into "STT Server" and "LLM Server" sections
+  with password-echoed key fields, so secrets are no longer echoed on screen.
+
+### Changed
+
+- **BREAKING:** `api_url` and `WHISPER_API_URL` were removed with no alias.
+  Rename `api_url` to `stt_api_url` in `~/.config/whisper-code/settings.json`
+  (or set `WHISPER_STT_API_URL`); the app otherwise falls back to
+  `http://localhost:8080`.
+- The startup log line now shows both server URLs and never the key values.
+- Hot-reload on settings save propagates URL and key changes to both the
+  transcriber and the grammar checker without a restart.
+
 ## [1.0.1] - 2026-11-09
 
 ### Fixed
