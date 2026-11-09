@@ -7,6 +7,8 @@ from PySide6.QtCore import QThread
 from PySide6.QtCore import Signal as pyqtSignal
 from requests.exceptions import RequestException as RequestsException
 
+from src.utils.auth_headers import auth_headers
+
 HTTP_OK = 200
 
 TranscribeFinishedCb = Callable[[str], None]
@@ -26,17 +28,20 @@ class APITranscriber(QThread):
     error = pyqtSignal(str)
     confidence_changed = pyqtSignal(float)
 
-    def __init__(self, api_url: str, model_name: str) -> None:
-        """Initialize the transcriber with API URL and model name.
+    def __init__(self, api_url: str, model_name: str, api_key: str | None = None) -> None:
+        """Initialize the transcriber with API URL, model, and optional key.
 
         Args:
             api_url: Base URL of the STT API (e.g. http://localhost:8080).
             model_name: Model identifier for transcription.
+            api_key: Bearer token for the STT server; None/empty sends
+                no Authorization header.
         """
         super().__init__()
         self.base_url: str = api_url.rstrip("/")
         self.api_endpoint: str = f"{self.base_url}/v1/audio/transcriptions"
         self.model_name: str = model_name
+        self.api_key: str | None = api_key
         self.audio_data: bytes | None = None
         self.last_result: str = ""
 
@@ -47,38 +52,21 @@ class APITranscriber(QThread):
     def run(self) -> None:
         """Execute the transcription request in a background thread.
 
-        Sends the audio to the API and emits signals on success or
-        error. Catches both RequestsException and generic exceptions.
+        Delegates to the transcribe function, wiring up the Qt signal
+        emitters as callbacks, and records the result for the grammar
+        checker fallback path.
         """
-        if not self.audio_data:
-            self.error.emit("No audio data provided")
-            return
-
-        try:
-            files: dict[str, tuple[str, bytes, str]] = {
-                "file": ("audio.wav", self.audio_data, "audio/wav")
-            }
-            payload: dict[str, str] = {"model": self.model_name}
-
-            response = requests.post(self.api_endpoint, files=files, data=payload, timeout=120)
-
-            if response.status_code == HTTP_OK:
-                response_json = response.json()
-                text: str = response_json.get("text", "").strip()
-                self.last_result = text
-                confidence: float | None = response_json.get("confidence")
-                if confidence is not None:
-                    self.confidence_changed.emit(float(confidence))
-                self.finished.emit(text)
-            else:
-                self.error.emit(f"API Error (Status {response.status_code}): {response.text}")
-
-        except RequestsException as e:
-            error_msg = f"Connection error: {str(e)}"
-            self.error.emit(error_msg)
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            self.error.emit(error_msg)
+        result = transcribe(
+            api_endpoint=self.api_endpoint,
+            model_name=self.model_name,
+            audio_data=self.audio_data,
+            finished_cb=self.finished.emit,
+            error_cb=self.error.emit,
+            confidence_cb=self.confidence_changed.emit,
+            api_key=self.api_key,
+        )
+        if result is not None:
+            self.last_result = result
 
 
 def _handle_error(error_cb: TranscribeErrorCb | None, error_msg: str) -> None:
@@ -119,6 +107,7 @@ def transcribe(
     finished_cb: TranscribeFinishedCb | None = None,
     error_cb: TranscribeErrorCb | None = None,
     confidence_cb: TranscribeConfidenceCb | None = None,
+    api_key: str | None = None,
 ) -> str | None:
     """Core transcription logic. Extracted for testability.
 
@@ -132,6 +121,7 @@ def transcribe(
         finished_cb: Callback invoked with the transcribed text.
         error_cb: Callback invoked on errors.
         confidence_cb: Callback invoked with the confidence score.
+        api_key: Bearer token; None/empty sends no Authorization header.
 
     Returns:
         The transcribed text on success, None on failure.
@@ -144,7 +134,13 @@ def transcribe(
         files: dict[str, tuple[str, bytes, str]] = {"file": ("audio.wav", audio_data, "audio/wav")}
         payload: dict[str, str] = {"model": model_name}
 
-        response = requests.post(api_endpoint, files=files, data=payload, timeout=120)
+        response = requests.post(
+            api_endpoint,
+            files=files,
+            data=payload,
+            headers=auth_headers(api_key),
+            timeout=120,
+        )
 
         if response.status_code == HTTP_OK:
             return _process_success(response, finished_cb, confidence_cb)

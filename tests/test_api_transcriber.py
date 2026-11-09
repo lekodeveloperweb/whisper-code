@@ -308,3 +308,61 @@ class TestAPITranscriber:
         assert result is None
         assert len(errors) == 1
         assert "Unexpected" in errors[0]
+
+
+def test_transcribe_sends_bearer_header(mock_requests, app):
+    from src.core.api_transcriber import transcribe
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"text": "hello"}
+    mock_requests.post.return_value = mock_response
+
+    transcribe(
+        api_endpoint="http://localhost:8080/v1/audio/transcriptions",
+        model_name="whisper-large-v3",
+        audio_data=b"fake wav",
+        api_key="sk-1",
+    )
+
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["headers"] == {"Authorization": "Bearer sk-1"}
+
+
+def test_transcribe_no_key_sends_empty_headers(mock_requests, app):
+    from src.core.api_transcriber import transcribe
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"text": "hello"}
+    mock_requests.post.return_value = mock_response
+
+    transcribe(
+        api_endpoint="http://localhost:8080/v1/audio/transcriptions",
+        model_name="whisper-large-v3",
+        audio_data=b"fake wav",
+        api_key=None,
+    )
+
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["headers"] == {}
+
+
+def test_run_delegates_api_key_to_post(mock_pyqt_signal, mock_requests, app):
+    from src.core.api_transcriber import APITranscriber
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"text": "ok"}
+    mock_requests.post.return_value = mock_response
+
+    transcriber = APITranscriber("http://localhost:8080", "whisper-large-v3", "k1")
+    transcriber.set_audio(b"audio data")
+    results = []
+    transcriber.finished.connect(results.append)
+    transcriber.run()
+
+    assert results == ["ok"]
+    assert transcriber.last_result == "ok"
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["headers"] == {"Authorization": "Bearer k1"}
