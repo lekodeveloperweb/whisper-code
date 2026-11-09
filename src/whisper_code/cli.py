@@ -25,7 +25,7 @@ from src.core.hotkey_listener import HotkeyListener
 from src.gui.settings_dialog import SettingsDialog
 from src.gui.tray_menu import TrayMenu
 from src.gui.wave_overlay import WaveOverlay
-from src.utils.config_manager import ConfigManager
+from src.utils.config_manager import STT_URL_DEFAULT, ConfigManager
 from src.utils.logger import get_logger
 from src.utils.text_injector import TextInjector
 from src.utils.toast import ToastNotifier
@@ -91,22 +91,35 @@ class WhisperCodeApp:
         sample_rate = self.config.get("sample_rate")
         return AudioRecorder(sample_rate=int(sample_rate) if sample_rate else 16000)
 
+    def _optional_str(self, key: str) -> str | None:
+        """Read a string config key, treating None and empty as unset."""
+        value = self.config.get(key)
+        return str(value) if value else None
+
     def _make_transcriber(self) -> APITranscriber:
         """Create APITranscriber configured with quality-resolved model name."""
         from src.utils.model_quality import resolve_model_name
 
-        api_url: str = str(self.config.get("api_url") or "http://localhost:8080")
+        stt_url: str = str(self.config.get("stt_api_url") or STT_URL_DEFAULT)
+        stt_key: str | None = self._optional_str("stt_api_key")
         model_quality: str = str(self.config.get("model_quality") or "accurate")
         custom_model_name: str | None = self.config.get("model_name")  # type: ignore[assignment]
 
         resolved_model: str = resolve_model_name(model_quality, custom_model_name)
-        return APITranscriber(api_url, resolved_model)
+        return APITranscriber(stt_url, resolved_model, stt_key)
 
     def _make_grammar_checker(self) -> GrammarChecker:
-        """Create GrammarChecker configured from settings."""
-        api_url: str = str(self.config.get("api_url") or "http://localhost:8080")
+        """Create GrammarChecker configured from settings.
+
+        The endpoint comes from resolved_llm_url so an unset llm_api_url
+        reuses the STT server; llm_api_key is read only for this server.
+        """
         grammar_model: str = str(self.config.get("grammar_model") or "gemma4-e4b-8b")
-        return GrammarChecker(api_url, grammar_model)
+        return GrammarChecker(
+            self.config.resolved_llm_url(),
+            grammar_model,
+            self._optional_str("llm_api_key"),
+        )
 
     def _make_tray(self) -> TrayMenu:
         """Create system tray with action callbacks."""
@@ -155,16 +168,20 @@ class WhisperCodeApp:
             self.app.setWindowIcon(QIcon(icon_path))
 
     def _log_startup(self) -> None:
-        """Emit startup log with API URL, resolved model, quality setting, and hotkey."""
+        """Emit startup log with both server URLs, models, and hotkey.
+
+        API keys are never interpolated into any log line.
+        """
         from src.utils.model_quality import resolve_model_name
 
         logger.info("\n" + "=" * 50)
         logger.info("Whisper-Code is running!")
-        logger.info(f"API URL: {self.config.get('api_url')}")
+        logger.info(f"STT API URL: {self.config.get('stt_api_url')}")
         model_quality: str = str(self.config.get("model_quality") or "accurate")
         custom_model: str | None = self.config.get("model_name")  # type: ignore[assignment]
         resolved: str = resolve_model_name(model_quality, custom_model)
         logger.info(f"STT Model:   {resolved} (quality: {model_quality})")
+        logger.info(f"LLM API URL: {self.config.resolved_llm_url()}")
         if self.config.get("use_grammar_check"):
             logger.info(f"SLM Model:   {self.config.get('grammar_model')}")
         logger.info("Hotkey:  Cmd + Ctrl + T")
@@ -406,7 +423,7 @@ class WhisperCodeApp:
     def _apply_settings(self) -> None:
         """Reconfigure all subsystems from current config values."""
         self._apply_sample_rate()
-        self._apply_api_url()
+        self._apply_stt_url()
         self._apply_model_config()
         self._apply_grammar_config()
         self._apply_hotkey()
@@ -420,13 +437,17 @@ class WhisperCodeApp:
             logger.debug(f"Sample rate changed: {self.recorder.sample_rate} -> {new_rate}")
             self.recorder.sample_rate = new_rate
 
-    def _apply_api_url(self) -> None:
-        """Update API URL if changed."""
-        new_url = str(self.config.get("api_url") or "http://localhost:8080")
+    def _apply_stt_url(self) -> None:
+        """Update STT API URL and key if changed."""
+        new_url = str(self.config.get("stt_api_url") or STT_URL_DEFAULT)
         if new_url != self.transcriber.base_url:
-            logger.debug(f"API URL changed to: {new_url}")
+            logger.debug(f"STT API URL changed to: {new_url}")
             self.transcriber.base_url = new_url
             self.transcriber.api_endpoint = f"{new_url.rstrip('/')}/v1/audio/transcriptions"
+        new_key = self._optional_str("stt_api_key")
+        if new_key != self.transcriber.api_key:
+            logger.debug("STT API key changed")
+            self.transcriber.api_key = new_key
 
     def _apply_model_config(self) -> None:
         """Update STT model name if changed."""
@@ -440,16 +461,19 @@ class WhisperCodeApp:
             self.transcriber.model_name = resolved
 
     def _apply_grammar_config(self) -> None:
-        """Update grammar checker config if changed."""
-        new_grammar_url = str(self.config.get("api_url") or "http://localhost:8080")
+        """Update grammar checker endpoint, model, and key if changed."""
+        new_endpoint = f"{self.config.resolved_llm_url().rstrip('/')}/v1/chat/completions"
+        if new_endpoint != self.grammar_checker.api_endpoint:
+            logger.debug(f"Grammar API URL changed to: {new_endpoint}")
+            self.grammar_checker.api_endpoint = new_endpoint
         new_grammar_model = str(self.config.get("grammar_model") or "gemma4-e4b-8b")
-        expected_endpoint = f"{new_grammar_url.rstrip('/')}/v1/chat/completions"
-        if expected_endpoint != self.grammar_checker.api_endpoint:
-            logger.debug(f"Grammar API URL changed to: {expected_endpoint}")
-            self.grammar_checker.api_endpoint = expected_endpoint
         if new_grammar_model != self.grammar_checker.model_name:
             logger.debug(f"Grammar model changed to: {new_grammar_model}")
             self.grammar_checker.model_name = new_grammar_model
+        new_key = self._optional_str("llm_api_key")
+        if new_key != self.grammar_checker.api_key:
+            logger.debug("Grammar API key changed")
+            self.grammar_checker.api_key = new_key
 
     def _apply_hotkey(self) -> None:
         """Update hotkey display string if changed."""

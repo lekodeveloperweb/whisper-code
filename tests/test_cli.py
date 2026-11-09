@@ -85,11 +85,12 @@ def mock_config():
         cm = MagicMock()
         cm.get.side_effect = {
             "sample_rate": 16000,
-            "api_url": "http://localhost:8080",
+            "stt_api_url": "http://localhost:8080",
             "model_name": "whisper-large-v3",
             "grammar_model": "gemma4-e4b-8b",
             "use_grammar_check": False,
         }.get
+        cm.resolved_llm_url.return_value = "http://localhost:8080"
         mock.return_value = cm
         yield cm
 
@@ -691,3 +692,112 @@ def test_check_accessibility_permission_warns(qapp, mock_components):
     # New behavior: logs debug, no toast, no settings dialog
     mock_logger.debug.assert_called()
     assert app.toast.error.call_count == 0
+
+
+def test_init_wires_stt_key_and_llm_fallback(qapp, mock_config):
+    """AC-15: STT key reaches the transcriber; unset LLM URL falls back
+    to the STT server; keys stay independent."""
+    import logging
+
+    from src.whisper_code.cli import WhisperCodeApp
+
+    values = {
+        "stt_api_url": "http://a:1",
+        "stt_api_key": "k1",
+        "llm_api_url": None,
+        "llm_api_key": None,
+        "model_name": "whisper-large-v3",
+        "model_quality": "accurate",
+        "grammar_model": "gemma4-e4b-8b",
+        "use_grammar_check": True,
+        "sample_rate": 16000,
+    }
+    mock_config.get.side_effect = values.get
+    mock_config.resolved_llm_url.side_effect = lambda: str(
+        values["llm_api_url"] or values["stt_api_url"]
+    )
+
+    with (
+        patch("src.whisper_code.cli.AudioRecorder"),
+        patch("src.whisper_code.cli.WaveOverlay"),
+        patch("src.whisper_code.cli.TrayMenu"),
+        patch("src.whisper_code.cli.HotkeyListener"),
+        patch("src.whisper_code.cli.TextInjector"),
+        patch("src.whisper_code.cli.ToastNotifier"),
+    ):
+        app = WhisperCodeApp(app=qapp)  # APITranscriber / GrammarChecker are REAL
+
+    assert app.transcriber.api_key == "k1"
+    assert app.grammar_checker.api_endpoint == "http://a:1/v1/chat/completions"
+    assert app.grammar_checker.api_key is None
+    logging.getLogger("whisper").handlers.clear()
+
+
+def test_apply_settings_hot_reloads_llm_url(qapp, mock_components, mock_config):
+    """AC-16: a saved llm_api_url propagates to the grammar endpoint."""
+    mock_config.resolved_llm_url.return_value = "http://new:2"
+    from src.whisper_code.cli import WhisperCodeApp
+
+    app = WhisperCodeApp(app=qapp)
+    app.grammar_checker.api_endpoint = "http://old:1/v1/chat/completions"
+
+    app._apply_settings()
+
+    assert app.grammar_checker.api_endpoint == "http://new:2/v1/chat/completions"
+
+
+def test_apply_settings_hot_reloads_api_keys(qapp, mock_components, mock_config):
+    """AC-17: both keys flow to their own component on _apply_settings."""
+    values = {
+        "stt_api_url": "http://a:1",
+        "stt_api_key": "k9",
+        "llm_api_key": "k8",
+        "model_name": "whisper-large-v3",
+        "model_quality": "accurate",
+        "grammar_model": "gemma4-e4b-8b",
+        "use_grammar_check": True,
+        "sample_rate": 16000,
+        "hotkey": "Cmd+Ctrl+T",
+    }
+    mock_config.get.side_effect = values.get
+    mock_config.resolved_llm_url.return_value = "http://a:1"
+    from src.whisper_code.cli import WhisperCodeApp
+
+    app = WhisperCodeApp(app=qapp)
+    app.transcriber.api_key = "old-stt"
+    app.grammar_checker.api_key = "old-llm"
+
+    app._apply_settings()
+
+    assert app.transcriber.api_key == "k9"
+    assert app.grammar_checker.api_key == "k8"
+
+
+def test_log_startup_never_logs_api_keys(qapp, mock_components, mock_config, caplog):
+    """AC-20: startup log shows both URLs but never the secret values."""
+    import logging
+
+    from src.whisper_code.cli import WhisperCodeApp
+
+    values = {
+        "stt_api_url": "http://a:1",
+        "stt_api_key": "secret-stt",
+        "llm_api_key": "secret-llm",
+        "model_name": "whisper-large-v3",
+        "model_quality": "accurate",
+        "grammar_model": "gemma4-e4b-8b",
+        "use_grammar_check": True,
+        "sample_rate": 16000,
+        "hotkey": "Cmd+Ctrl+T",
+    }
+    mock_config.get.side_effect = values.get
+    mock_config.resolved_llm_url.return_value = "http://b:2"
+
+    caplog.set_level(logging.DEBUG, logger="whisper")
+    WhisperCodeApp(app=qapp)  # __init__ -> setup() -> _log_startup()
+
+    records = "\n".join(r.getMessage() for r in caplog.records)
+    assert "http://a:1" in records
+    assert "http://b:2" in records
+    assert "secret-stt" not in records
+    assert "secret-llm" not in records
