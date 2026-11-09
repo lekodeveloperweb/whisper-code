@@ -2,9 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QRect, Qt
-from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QPoint, QRect, Qt, QTimer
+from PySide6.QtGui import QAction, QColor, QCursor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
+
+# Click reasons that should reveal the menu. Unknown/MiddleClick are
+# deliberately excluded: popping a menu for them fights the user's intent.
+MENU_REASONS: frozenset[QSystemTrayIcon.ActivationReason] = frozenset(
+    {
+        QSystemTrayIcon.ActivationReason.Trigger,
+        QSystemTrayIcon.ActivationReason.DoubleClick,
+        QSystemTrayIcon.ActivationReason.Context,
+    }
+)
 
 ToggleCallback = Callable[[], None]
 StopCallback = Callable[[], None]
@@ -16,8 +26,18 @@ class TrayMenu(QSystemTrayIcon):
     """Create a macOS system tray menu with toggle and quit actions.
 
     Provides a system tray icon with a menu containing a toggle
-    action (to start/stop listening) and a quit action. Also
-    supports double-click to toggle.
+    action (to start/stop listening) and a quit action.
+
+    The menu is *not* handed to ``setContextMenu()``. On macOS that makes
+    libqcocoa's ``QStatusItemDelegate`` observe the NSStatusItem menu's
+    begin-tracking notification, and that handler reads ``clickCount`` off
+    ``[NSApp currentEvent]``. ``-[NSEvent clickCount]`` is only valid for
+    mouse events, so when a system-defined event (Fn/Globe or a media key)
+    happens to be current, AppKit raises ``NSInternalInconsistencyException``
+    ("Invalid message sent to event ... type=SysDefined") and the process
+    aborts. Instead the menu is popped by us from the ``activated`` signal,
+    one event-loop tick later, so Qt never installs that observer and no
+    foreign event is current while the menu starts tracking.
     """
 
     def __init__(
@@ -76,7 +96,35 @@ class TrayMenu(QSystemTrayIcon):
         quit_action.triggered.connect(quit_callback)
         self.menu.addAction(quit_action)
 
-        self.setContextMenu(self.menu)
+        self.activated.connect(self._on_activated)
+
+    def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        """Handle a click on the tray icon by scheduling the menu.
+
+        The popup is deferred to the next event-loop tick rather than shown
+        inline: while this callback runs ``[NSApp currentEvent]`` is still the
+        event that triggered the activation, and starting menu tracking
+        against a non-mouse current event is what crashes AppKit.
+
+        Args:
+            reason: Why Qt reports the tray icon was activated.
+        """
+        if reason in MENU_REASONS:
+            QTimer.singleShot(0, self._show_menu)
+
+    def _show_menu(self) -> None:
+        """Pop the menu just below the tray icon.
+
+        Falls back to the cursor position when the icon reports a null
+        geometry, which happens while the status bar item has not been laid
+        out yet or is hidden behind the notch.
+        """
+        rect: QRect = self.geometry()
+        # bottomLeft() is the *last* row inside the icon; add one to clear it.
+        anchor: QPoint = (
+            QPoint(rect.left(), rect.bottom() + 1) if not rect.isNull() else QCursor.pos()
+        )
+        self.menu.popup(anchor)
 
     def _create_microphone_icon(self) -> QIcon:
         """Draw a microphone icon programmatically for macOS system tray.

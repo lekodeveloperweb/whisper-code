@@ -87,6 +87,7 @@ Key design decisions:
 
 - Audio stays in-memory (io.BytesIO + wave module). Nothing written to disk.
 - HUD uses Qt.ToolTip with 0.0 opacity toggled to 1.0 to bypass macOS focus-switching.
+- Tray menu is popped from `QSystemTrayIcon.activated` (deferred one event-loop tick), never via `setContextMenu()`: Qt's cocoa `QStatusItemDelegate` reads `clickCount` off `[NSApp currentEvent]` when the status-item menu starts tracking, and AppKit throws `NSInternalInconsistencyException` if that event is system-defined (Fn/Globe, media keys). See `src/gui/tray_menu.py`.
 - Text injection uses pyperclip backup + pynput simulated Cmd+V.
 - Config lives in `~/.config/whisper-code/settings.json`, merged with defaults then env var overrides on each load.
 - Env var priority: env vars > file config > defaults. See `ENV_MAP` in `config_manager.py`.

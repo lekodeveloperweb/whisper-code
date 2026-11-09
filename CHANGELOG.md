@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Clicking the menu bar icon aborted the process** with
+  `NSInternalInconsistencyException: Invalid message sent to event "NSEvent:
+  type=SysDefined ..."`. The tray menu was attached with
+  `QSystemTrayIcon.setContextMenu()`, which makes Qt's cocoa plugin
+  (`QStatusItemDelegate` in `libqcocoa`) observe the status-item menu's
+  begin-tracking notification and read `clickCount` off `[NSApp currentEvent]`.
+  `-[NSEvent clickCount]` is only valid for mouse events, so when a
+  system-defined event was current — an Fn/Globe or media-key event, which
+  pynput's global keyboard tap shares the Cocoa event stream with — AppKit
+  raised through Qt's observer and `libc++abi` called `abort()`. `TrayMenu` now
+  owns the menu and pops it from the `activated` signal, deferred to the next
+  event-loop tick, so Qt never installs that observer and no foreign event is
+  current while the menu starts tracking.
+
 ## [1.0.0] - 2026-06-18
 
 ### Added
