@@ -4,8 +4,10 @@ import json
 import os
 from pathlib import Path
 
+STT_URL_DEFAULT = "http://localhost:8080"
+
 DEFAULT_CONFIG: dict[str, str | int | bool | None] = {
-    "api_url": "http://localhost:8080",
+    "stt_api_url": STT_URL_DEFAULT,
     "model_name": "whisper-large-v3",
     "model_quality": "accurate",
     "hotkey": "Cmd+Ctrl+T",
@@ -15,10 +17,13 @@ DEFAULT_CONFIG: dict[str, str | int | bool | None] = {
     "grammar_model": "gemma4-e4b-8b",
     "silence_threshold_ms": 800,
     "voice_commands_enabled": True,
+    "llm_api_url": None,
+    "stt_api_key": None,
+    "llm_api_key": None,
 }
 
 ENV_MAP: dict[str, tuple[str, type]] = {
-    "api_url": ("WHISPER_API_URL", str),
+    "stt_api_url": ("WHISPER_STT_API_URL", str),
     "model_name": ("WHISPER_MODEL_NAME", str),
     "model_quality": ("WHISPER_MODEL_QUALITY", str),
     "hotkey": ("WHISPER_HOTKEY", str),
@@ -28,6 +33,9 @@ ENV_MAP: dict[str, tuple[str, type]] = {
     "grammar_model": ("WHISPER_GRAMMAR_MODEL", str),
     "silence_threshold_ms": ("WHISPER_SILENCE_THRESHOLD", int),
     "voice_commands_enabled": ("WHISPER_VOICE_COMMANDS", bool),
+    "llm_api_url": ("WHISPER_LLM_API_URL", str),
+    "stt_api_key": ("WHISPER_STT_API_KEY", str),
+    "llm_api_key": ("WHISPER_LLM_API_KEY", str),
 }
 
 
@@ -76,6 +84,23 @@ class ConfigManager:
             if env_value is not None and env_value != "":
                 config[key] = self._parse_env_value(env_value, target_type)
         return config
+
+    def resolved_llm_url(self) -> str:
+        """Base URL for the chat/completions server.
+
+        Returns llm_api_url when it is a non-empty string, else the STT
+        stt_api_url, else STT_URL_DEFAULT.
+
+        >>> ConfigManager().resolved_llm_url()  # both unset
+        'http://localhost:8080'
+        """
+        llm = self.config.get("llm_api_url")
+        if isinstance(llm, str) and llm != "":
+            return llm
+        stt = self.config.get("stt_api_url")
+        if isinstance(stt, str) and stt != "":
+            return stt
+        return STT_URL_DEFAULT
 
     def save_config(self, config_updates: dict[str, str | int | bool]) -> None:
         """Persist config updates to the settings JSON file.
