@@ -238,3 +238,62 @@ class TestGrammarChecker:
 
         assert len(errors) == 1
         assert "connection" in errors[0]
+
+
+def test_check_grammar_sends_bearer_header(mock_requests, app):
+    from src.core.grammar_checker import check_grammar
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"choices": [{"message": {"content": "fixed text"}}]}
+    mock_requests.post.return_value = mock_response
+
+    result = check_grammar(
+        api_endpoint="http://localhost:8080/v1/chat/completions",
+        model_name="gemma4-e4b-8b",
+        text="raw text",
+        api_key="sk-2",
+    )
+
+    assert result == "fixed text"
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["headers"] == {"Authorization": "Bearer sk-2"}
+
+
+def test_check_grammar_no_key_sends_empty_headers(mock_requests, app):
+    from src.core.grammar_checker import check_grammar
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"choices": [{"message": {"content": "fixed text"}}]}
+    mock_requests.post.return_value = mock_response
+
+    result = check_grammar(
+        api_endpoint="http://localhost:8080/v1/chat/completions",
+        model_name="gemma4-e4b-8b",
+        text="raw text",
+        api_key=None,
+    )
+
+    assert result == "fixed text"
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["headers"] == {}
+
+
+def test_grammarchecker_run_passes_api_key(mock_pyqt_signal, mock_requests, app):
+    from src.core.grammar_checker import GrammarChecker
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"choices": [{"message": {"content": "fixed text"}}]}
+    mock_requests.post.return_value = mock_response
+
+    checker = GrammarChecker("http://localhost:8080", "gemma4-e4b-8b", "k2")
+    checker.set_text("raw text")
+    results = []
+    checker.finished.connect(results.append)
+    checker.run()
+
+    assert results == ["fixed text"]
+    _, kwargs = mock_requests.post.call_args
+    assert kwargs["headers"] == {"Authorization": "Bearer k2"}

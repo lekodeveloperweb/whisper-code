@@ -7,6 +7,8 @@ import requests
 from PySide6.QtCore import QThread
 from PySide6.QtCore import Signal as pyqtSignal
 
+from src.utils.auth_headers import auth_headers
+
 HTTP_OK = 200
 
 CheckGrammarFinishedCb = Callable[[str], None]
@@ -19,6 +21,7 @@ def check_grammar(
     text: str,
     finished_cb: CheckGrammarFinishedCb | None = None,
     error_cb: CheckGrammarErrorCb | None = None,
+    api_key: str | None = None,
 ) -> str | None:
     """Core grammar checking logic. Extracted for testability.
 
@@ -32,6 +35,7 @@ def check_grammar(
         text: The text to correct.
         finished_cb: Callback invoked with the corrected text.
         error_cb: Callback invoked on errors.
+        api_key: Bearer token; None/empty sends no Authorization header.
 
     Returns:
         The corrected text on success, None on failure.
@@ -67,7 +71,12 @@ def check_grammar(
     }
 
     try:
-        response = requests.post(api_endpoint, json=payload, timeout=30)
+        response = requests.post(
+            api_endpoint,
+            json=payload,
+            headers=auth_headers(api_key),
+            timeout=30,
+        )
         if response.status_code == HTTP_OK:
             response_json = response.json()
             corrected: str = response_json["choices"][0]["message"]["content"].strip()
@@ -95,16 +104,19 @@ class GrammarChecker(QThread):
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
 
-    def __init__(self, api_url: str, model_name: str) -> None:
-        """Initialize the grammar checker with API URL and model name.
+    def __init__(self, api_url: str, model_name: str, api_key: str | None = None) -> None:
+        """Initialize the grammar checker with API URL, model, optional key.
 
         Args:
             api_url: Base URL of the chat completions API.
             model_name: Model identifier for grammar refinement.
+            api_key: Bearer token for the LLM server; None/empty sends
+                no Authorization header.
         """
         super().__init__()
         self.api_endpoint: str = f"{api_url.rstrip('/')}/v1/chat/completions"
         self.model_name: str = model_name
+        self.api_key: str | None = api_key
         self.text_to_fix: str = ""
 
     def set_text(self, text: str) -> None:
@@ -127,4 +139,5 @@ class GrammarChecker(QThread):
             text=self.text_to_fix,
             finished_cb=self.finished.emit,
             error_cb=self.error.emit,
+            api_key=self.api_key,
         )
