@@ -11,6 +11,10 @@ BAR_WIDTH: int = 10
 WINDOW_HEIGHT: int = 140
 WINDOW_WIDTH: int = 440
 BASE_Y_OFFSET: int = 30
+# Bar-height ratios where the waveform gradient switches colour.
+GRADIENT_GREEN_MAX: float = 0.33
+GRADIENT_BLUE_MAX: float = 0.66
+GRADIENT_ORANGE_MAX: float = 0.85
 
 
 class WaveOverlay(QWidget):
@@ -103,11 +107,11 @@ class WaveOverlay(QWidget):
 
             # Height-based gradient: green (low) → blue (mid) → orange → red (high)
             ratio: float = h / max_bar_height if max_bar_height > 0 else 0.0
-            if ratio < 0.33:
+            if ratio < GRADIENT_GREEN_MAX:
                 color: QColor = QColor(76, 175, 80, 220)  # green
-            elif ratio < 0.66:
+            elif ratio < GRADIENT_BLUE_MAX:
                 color = QColor(33, 150, 243, 220)  # blue
-            elif ratio < 0.85:
+            elif ratio < GRADIENT_ORANGE_MAX:
                 color = QColor(255, 152, 0, 220)  # orange
             else:
                 color = QColor(244, 67, 54, 220)  # red
