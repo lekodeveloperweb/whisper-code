@@ -10,6 +10,7 @@
 | [system-architecture-diagram.md](system-architecture-diagram.md) | Tech spec, architecture diagrams, state machine, error handling |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
 | [PACKAGING.md](PACKAGING.md) | Build standalone app, create .dmg, pip package |
+| [RELEASING.md](RELEASING.md) | Release runbook: pre-flight, build, artifact proof, gh release |
 | [UI-WIREFRAMES.md](UI-WIREFRAMES.md) | Visual design specs, color palette, typography |
 | [ROADMAP.md](ROADMAP.md) | V1 → V2 → V3 timeline, milestones, technical debt |
 | [api-reference.md](api-reference.md) | Module interfaces, class signatures, config schema |

@@ -155,6 +155,9 @@ xcrun stapler staple dist/Whisper-Code.dmg
 
 ## Distribution Checklist
 
+For the GitHub release procedure (tag, assets, `gh release create`, verification)
+see [RELEASING.md](RELEASING.md); this guide only covers building.
+
 - [ ] App builds without errors
 - [ ] App launches and runs on target macOS version
 - [ ] Microphone permission works

@@ -25,3 +25,4 @@ nav:
   - Usage: usage/
   - Architecture: architecture/
   - Contributing: contributing/
+  - Releasing: RELEASING.md
