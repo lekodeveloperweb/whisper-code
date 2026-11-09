@@ -13,7 +13,7 @@
 - Produces: renamed `_apply_stt_url()`, new `_optional_str()` — consumed by
   task 6 tests indirectly (dialog → `_apply_settings`).
 
-- [ ] Step 1: Write the failing tests
+- [x] Step 1: Write the failing tests
 
 In `tests/test_cli.py`, first UPDATE the `mock_config` fixture (around
 line 82): change the dict key `"api_url": "http://localhost:8080",` to
@@ -142,7 +142,7 @@ def test_log_startup_never_logs_api_keys(qapp, mock_components, mock_config, cap
     assert "secret-llm" not in records
 ```
 
-- [ ] Step 2: RED GATE
+- [x] Step 2: RED GATE
 
 Run: `uv run pytest tests/test_cli.py -v`
 Expected output: exactly the four new tests FAIL.
@@ -155,7 +155,7 @@ against the old wiring because `config.get("api_url")` on the mock now
 returns `None` and the old code falls back to `http://localhost:8080`).
 PASTE the output.
 
-- [ ] Step 3: Implement
+- [x] Step 3: Implement
 
 In `src/whisper_code/cli.py` apply the blocks from interfaces.md
 § WhisperCodeApp changes:
@@ -173,7 +173,7 @@ In `src/whisper_code/cli.py` apply the blocks from interfaces.md
 6. Replace `_apply_grammar_config` with the interfaces.md block — it keeps
    the grammar-model hot-reload lines inside the new body.
 
-- [ ] Step 4: GREEN
+- [x] Step 4: GREEN
 
 Run: `uv run pytest tests/test_cli.py -v`
 Expected output: all tests pass (`47 passed` — 43 pre-existing + 4 new).
@@ -182,12 +182,12 @@ Failure mode this catches: key leaking to the wrong component (AC-15
 independence), hot-reload missing the new URL (AC-16) or keys (AC-17), and
 secrets appearing in logs (AC-20).
 
-- [ ] Step 5: Lint + type check
+- [x] Step 5: Lint + type check
 
 Run: `uv run ruff check src/whisper_code/cli.py && uv run mypy src/whisper_code/cli.py`
 Expected output: no issues found.
 
-- [ ] Step 6: Commit
+- [x] Step 6: Commit
 
 ```bash
 git add src/whisper_code/cli.py tests/test_cli.py

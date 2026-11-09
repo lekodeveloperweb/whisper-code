@@ -12,7 +12,7 @@
   `self.api_key: str | None`; `transcribe(..., api_key=None)` — consumed by
   task 5 (cli wiring).
 
-- [ ] Step 1: Write the failing tests
+- [x] Step 1: Write the failing tests
 
 APPEND these three tests to `tests/test_api_transcriber.py` (the file
 already imports `MagicMock`, `patch`, `pytest`, `QApplication`, and defines
@@ -77,7 +77,7 @@ def test_run_delegates_api_key_to_post(mock_pyqt_signal, mock_requests, app):
     assert kwargs["headers"] == {"Authorization": "Bearer k1"}
 ```
 
-- [ ] Step 2: RED GATE
+- [x] Step 2: RED GATE
 
 Run: `uv run pytest tests/test_api_transcriber.py -v`
 Expected output: the three new tests FAIL — the two transcribe tests with
@@ -86,7 +86,7 @@ the run test with `TypeError: __init__() takes 3 positional arguments but 4
 were given`. All pre-existing tests still PASS.
 PASTE the output.
 
-- [ ] Step 3: Implement
+- [x] Step 3: Implement
 
 In `src/core/api_transcriber.py`:
 
@@ -101,7 +101,7 @@ In `src/core/api_transcriber.py`:
    `_handle_error`, `_process_success`, class docstring, and signal
    declarations stay untouched.
 
-- [ ] Step 4: GREEN
+- [x] Step 4: GREEN
 
 Run: `uv run pytest tests/test_api_transcriber.py -v`
 Expected output: all tests pass (`20 passed` — 17 pre-existing + 3 new).
@@ -110,12 +110,12 @@ Failure mode this catches: the QThread path sending no auth (run not
 wired to api_key) or the extracted function regressing the empty-key case
 (AC-12, AC-13).
 
-- [ ] Step 5: Lint + type check
+- [x] Step 5: Lint + type check
 
 Run: `uv run ruff check src/core/api_transcriber.py && uv run mypy src/core/api_transcriber.py`
 Expected output: no issues found.
 
-- [ ] Step 6: Commit
+- [x] Step 6: Commit
 
 ```bash
 git add src/core/api_transcriber.py tests/test_api_transcriber.py

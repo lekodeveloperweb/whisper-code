@@ -24,7 +24,7 @@ because the dialog still reads the dead `api_url` key), and
 because `DEFAULT_CONFIG` no longer carries the key). Task 6 fixes them. Do
 NOT touch the dialog here.
 
-- [ ] Step 1: Write the failing tests
+- [x] Step 1: Write the failing tests
 
 APPEND these nine tests to `tests/test_config.py` (the file already imports
 `patch` from `unittest.mock` and `ConfigManager`):
@@ -134,7 +134,7 @@ as follows:
    `cm.save_config({"api_url": "http://test.com"})` to
    `cm.save_config({"stt_api_url": "http://test.com"})`.
 
-- [ ] Step 2: RED GATE
+- [x] Step 2: RED GATE
 
 Run: `uv run pytest tests/test_config.py -v`
 Expected output: the nine new tests AND the four updated pre-existing ones
@@ -147,7 +147,7 @@ The remaining pre-existing tests PASS.
 PASTE the output.
 PASTE the output.
 
-- [ ] Step 3: Implement
+- [x] Step 3: Implement
 
 In `src/utils/config_manager.py`:
 
@@ -158,7 +158,7 @@ In `src/utils/config_manager.py`:
 3. Add `resolved_llm_url` (interfaces.md § New method on ConfigManager) as
    a `ConfigManager` method, after `load_config`.
 
-- [ ] Step 4: GREEN
+- [x] Step 4: GREEN
 
 Run: `uv run pytest tests/test_config.py -v`
 Expected output: all tests pass (`18 passed` — 9 pre-existing remaining + 9
@@ -167,7 +167,7 @@ Failure mode this catches: an accidental alias keeping legacy `api_url`
 alive (AC-2), a wrong env var name making overrides inert (AC-3, AC-5,
 AC-9), or the fallback chain resolving wrongly (AC-6..AC-8).
 
-- [ ] Step 5: REAL-ARTIFACT gate over the shipped schema
+- [x] Step 5: REAL-ARTIFACT gate over the shipped schema
 
 Run:
 
@@ -179,12 +179,12 @@ Expected output: `real-artifact OK: 4`.
 Failure mode this catches: a key silently missing from the shipped config
 schema, or the rename leaving `api_url` behind.
 
-- [ ] Step 6: Lint + type check
+- [x] Step 6: Lint + type check
 
 Run: `uv run ruff check src/utils/config_manager.py tests/test_config.py && uv run mypy src/utils/config_manager.py`
 Expected output: no issues found.
 
-- [ ] Step 7: Commit
+- [x] Step 7: Commit
 
 ```bash
 git add src/utils/config_manager.py tests/test_config.py

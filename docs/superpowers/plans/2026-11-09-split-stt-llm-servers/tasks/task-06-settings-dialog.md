@@ -16,7 +16,7 @@ This task repairs the KNOWN TRANSIENT FAILURE declared in index.md
 (`test_settings_dialog_populates_from_config` has been failing since
 task 4 because the dialog still reads the dead `api_url` key).
 
-- [ ] Step 1: Write the failing tests
+- [x] Step 1: Write the failing tests
 
 In `tests/test_settings_dialog.py`, UPDATE the five pre-existing
 assertions that reference the dead key — change every
@@ -82,7 +82,7 @@ def test_dialog_save_writes_llm_url_to_disk(qapp, config_manager):
     assert saved["llm_api_url"] == "http://x:9"
 ```
 
-- [ ] Step 2: RED GATE
+- [x] Step 2: RED GATE
 
 Run: `uv run pytest tests/test_settings_dialog.py -v`
 Expected output: eight tests FAIL — the five updated pre-existing ones with
@@ -93,7 +93,7 @@ transient `test_settings_dialog_populates_from_config` with `AssertionError`
 (or `KeyError`). All other tests PASS.
 PASTE the output.
 
-- [ ] Step 3: Implement
+- [x] Step 3: Implement
 
 In `src/gui/settings_dialog.py` apply every block from interfaces.md
 § SettingsDialog changes: new widget creation lines after `self._api_edit`,
@@ -101,7 +101,7 @@ the three widgets appended to `_widget_refs` after `self._api_edit,`, and
 the full replacements of `_setup_ui`, `_populate_widgets`, and
 `_apply_config`.
 
-- [ ] Step 4: GREEN
+- [x] Step 4: GREEN
 
 Run: `uv run pytest tests/test_settings_dialog.py -v`
 Expected output: all tests pass (`22 passed` — 19 pre-existing + 3 new),
@@ -111,12 +111,12 @@ Failure mode this catches: the dialog writing a stale `api_url` key that
 config no longer reads (users' saved settings silently ignored), or key
 fields echoing secrets on screen (AC-18 masking).
 
-- [ ] Step 5: Lint + type check
+- [x] Step 5: Lint + type check
 
 Run: `uv run ruff check src/gui/settings_dialog.py && uv run mypy src/gui/settings_dialog.py`
 Expected output: no issues found.
 
-- [ ] Step 6: Commit
+- [x] Step 6: Commit
 
 ```bash
 git add src/gui/settings_dialog.py tests/test_settings_dialog.py
