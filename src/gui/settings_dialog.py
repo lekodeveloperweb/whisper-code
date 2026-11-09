@@ -99,6 +99,11 @@ class SettingsDialog(QDialog):
         self.setModal(True)
 
         self._api_edit: QLineEdit = QLineEdit()
+        self._stt_key_edit: QLineEdit = QLineEdit()
+        self._stt_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self._llm_api_edit: QLineEdit = QLineEdit()
+        self._llm_key_edit: QLineEdit = QLineEdit()
+        self._llm_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._model_edit: QLineEdit = QLineEdit()
         self._hotkey_edit: QLineEdit = QLineEdit()
         self._hotkey_edit.setReadOnly(True)
@@ -123,6 +128,9 @@ class SettingsDialog(QDialog):
         # Shiboken GC bug where C++ objects get deleted prematurely.
         self._widget_refs: list[QWidget] = [
             self._api_edit,
+            self._stt_key_edit,
+            self._llm_api_edit,
+            self._llm_key_edit,
             self._model_edit,
             self._hotkey_edit,
             self._record_button,
@@ -146,60 +154,10 @@ class SettingsDialog(QDialog):
     def _setup_ui(self) -> None:
         """Build the settings dialog using Qt layouts for proper formatting."""
         main_layout = QVBoxLayout(self)
-
-        # --- API Settings group ---
-        api_group: QGroupBox = QGroupBox("API Settings")
-        api_form = QFormLayout(api_group)
-
-        self._api_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        api_form.addRow("&API URL:", self._api_edit)
-
-        self._model_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        api_form.addRow("&Model Name:", self._model_edit)
-
-        main_layout.addWidget(api_group)
-
-        # --- Hotkey group ---
-        hotkey_group: QGroupBox = QGroupBox("Hotkey")
-        hotkey_layout = QHBoxLayout(hotkey_group)
-
-        self._hotkey_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._recording_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-        self._recording_label.setVisible(False)
-
-        hotkey_layout.addWidget(QLabel("Custom Hotkey:"))
-        hotkey_layout.addWidget(self._hotkey_edit)
-        hotkey_layout.addWidget(self._recording_label, stretch=1)
-        hotkey_layout.addWidget(self._record_button)
-
-        main_layout.addWidget(hotkey_group)
-
-        # --- Preferences group ---
-        prefs_group: QGroupBox = QGroupBox("Preferences")
-        prefs_form = QFormLayout(prefs_group)
-
-        self._auto_insert_check.setText("Auto-insert after transcription")
-        prefs_form.addRow(self._auto_insert_check)
-
-        self._sample_spin.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        prefs_form.addRow("&Sample Rate (Hz):", self._sample_spin)
-
-        self._silence_spin.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        prefs_form.addRow("&Silence Threshold (ms):", self._silence_spin)
-
-        self._grammar_check.setText("Enable grammar checking")
-        prefs_form.addRow(self._grammar_check)
-
-        self._grammar_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        prefs_form.addRow("&Grammar Model:", self._grammar_edit)
-
-        self._quality_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        prefs_form.addRow("&Model Quality:", self._quality_combo)
-
-        self._voice_commands_check.setText("Enable voice commands")
-        prefs_form.addRow(self._voice_commands_check)
-
-        main_layout.addWidget(prefs_group)
+        main_layout.addWidget(self._build_stt_group())
+        main_layout.addWidget(self._build_llm_group())
+        main_layout.addWidget(self._build_hotkey_group())
+        main_layout.addWidget(self._build_prefs_group())
 
         # Spacer pushes OK/Cancel to bottom
         main_layout.addStretch()
@@ -216,8 +174,63 @@ class SettingsDialog(QDialog):
         # Store reference to prevent GC
         self._widget_refs.append(button_box)
 
+    @staticmethod
+    def _add_wide_row(form: QFormLayout, label: str, widget: QWidget) -> None:
+        """Add a form row whose field expands horizontally."""
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        form.addRow(label, widget)
+
+    def _build_stt_group(self) -> QGroupBox:
+        """STT Server section: transcription URL, its API key, model, quality."""
+        group = QGroupBox("STT Server")
+        form = QFormLayout(group)
+        self._add_wide_row(form, "API &URL:", self._api_edit)
+        self._add_wide_row(form, "API K&ey:", self._stt_key_edit)
+        self._add_wide_row(form, "&Model Name:", self._model_edit)
+        self._add_wide_row(form, "Model &Quality:", self._quality_combo)
+        return group
+
+    def _build_llm_group(self) -> QGroupBox:
+        """LLM Server section: grammar-check URL, its API key, model, toggle."""
+        group = QGroupBox("LLM Server")
+        form = QFormLayout(group)
+        self._add_wide_row(form, "LLM &URL:", self._llm_api_edit)
+        self._add_wide_row(form, "LLM Ke&y:", self._llm_key_edit)
+        self._add_wide_row(form, "&Grammar Model:", self._grammar_edit)
+        self._grammar_check.setText("Enable grammar checking")
+        form.addRow(self._grammar_check)
+        return group
+
+    def _build_hotkey_group(self) -> QGroupBox:
+        """Hotkey section: recorded combo plus record button."""
+        group = QGroupBox("Hotkey")
+        layout = QHBoxLayout(group)
+        self._hotkey_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._recording_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self._recording_label.setVisible(False)
+        layout.addWidget(QLabel("Custom Hotkey:"))
+        layout.addWidget(self._hotkey_edit)
+        layout.addWidget(self._recording_label, stretch=1)
+        layout.addWidget(self._record_button)
+        return group
+
+    def _build_prefs_group(self) -> QGroupBox:
+        """Preferences: insertion behavior, capture tuning, voice commands."""
+        group = QGroupBox("Preferences")
+        form = QFormLayout(group)
+        self._auto_insert_check.setText("Auto-insert after transcription")
+        form.addRow(self._auto_insert_check)
+        self._add_wide_row(form, "&Sample Rate (Hz):", self._sample_spin)
+        self._add_wide_row(form, "&Silence Threshold (ms):", self._silence_spin)
+        self._voice_commands_check.setText("Enable voice commands")
+        form.addRow(self._voice_commands_check)
+        return group
+
     def _populate_widgets(self) -> None:
-        self._api_edit.setText(str(self._config.get("api_url") or ""))
+        self._api_edit.setText(str(self._config.get("stt_api_url") or ""))
+        self._stt_key_edit.setText(str(self._config.get("stt_api_key") or ""))
+        self._llm_api_edit.setText(str(self._config.get("llm_api_url") or ""))
+        self._llm_key_edit.setText(str(self._config.get("llm_api_key") or ""))
         self._model_edit.setText(str(self._config.get("model_name") or ""))
         self._hotkey_edit.setText(str(self._config.get("hotkey") or ""))
         self._auto_insert_check.setChecked(bool(self._config.get("auto_insert")))
@@ -233,7 +246,10 @@ class SettingsDialog(QDialog):
 
     def _apply_config(self) -> dict[str, Any]:
         updates: dict[str, Any] = {}
-        updates["api_url"] = self._api_edit.text()
+        updates["stt_api_url"] = self._api_edit.text()
+        updates["stt_api_key"] = self._stt_key_edit.text()
+        updates["llm_api_url"] = self._llm_api_edit.text()
+        updates["llm_api_key"] = self._llm_key_edit.text()
         updates["model_name"] = self._model_edit.text()
         updates["hotkey"] = self._hotkey_edit.text()
         updates["auto_insert"] = self._auto_insert_check.isChecked()

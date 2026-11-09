@@ -56,7 +56,7 @@ def test_settings_dialog_save_writes_config(qapp, config_manager):
     dialog._save()
 
     saved = json.loads(config_manager.config_file.read_text())
-    assert saved["api_url"] == "http://new-url.com"
+    assert saved["stt_api_url"] == "http://new-url.com"
     assert saved["model_name"] == "new-model"
 
 
@@ -68,7 +68,7 @@ def test_settings_dialog_cancel_does_not_save(qapp, config_manager):
     dialog._cancel()
 
     saved = json.loads(config_manager.config_file.read_text())
-    assert saved["api_url"] == "http://localhost:8080"
+    assert saved["stt_api_url"] == "http://localhost:8080"
 
 
 def test_settings_dialog_apply_config(qapp, config_manager):
@@ -84,7 +84,7 @@ def test_settings_dialog_apply_config(qapp, config_manager):
 
     updates = dialog._apply_config()
 
-    assert updates["api_url"] == "http://example.com"
+    assert updates["stt_api_url"] == "http://example.com"
     assert updates["model_name"] == "test-model"
     assert updates["auto_insert"] is False
     assert updates["sample_rate"] == SAMPLE_RATE_ALT
@@ -139,7 +139,7 @@ def test_settings_dialog_save_updates_all_fields(qapp, config_manager):
     dialog._save()
 
     saved = json.loads(config_manager.config_file.read_text())
-    assert saved["api_url"] == "http://api.example.com"
+    assert saved["stt_api_url"] == "http://api.example.com"
     assert saved["model_name"] == "whisper-tiny"
     assert saved["hotkey"] == "Alt+Space"
     assert saved["auto_insert"] is False
@@ -158,7 +158,7 @@ def test_settings_dialog_reject_button(qapp, config_manager):
     button.click()
 
     saved = json.loads(config_manager.config_file.read_text())
-    assert saved["api_url"] == "http://localhost:8080"
+    assert saved["stt_api_url"] == "http://localhost:8080"
 
 
 def test_hotkey_recorder_init(qapp):
@@ -279,3 +279,42 @@ def test_settings_dialog_recorder_thread_finishes_promptly(qapp, config_manager)
 
     assert dialog._recorder is not None
     assert dialog._recorder.wait(2000), "recorder thread did not finish within 2s"
+
+
+def test_dialog_populates_split_server_fields(qapp, config_manager):
+    """AC-18: STT URL/key populate the right fields; key field is masked."""
+    from PySide6.QtWidgets import QLineEdit
+
+    from src.gui.settings_dialog import SettingsDialog
+
+    config_manager.config.update({"stt_api_url": "http://a:1", "stt_api_key": "sk-1"})
+    dialog = SettingsDialog(config_manager)
+    dialog._populate_widgets()
+
+    assert dialog._api_edit.text() == "http://a:1"
+    assert dialog._stt_key_edit.text() == "sk-1"
+    assert dialog._stt_key_edit.echoMode() == QLineEdit.EchoMode.Password
+    assert dialog._llm_key_edit.echoMode() == QLineEdit.EchoMode.Password
+
+
+def test_dialog_apply_config_contains_four_keys(qapp, config_manager):
+    """AC-18: the update dict carries the four server/auth keys."""
+    from src.gui.settings_dialog import SettingsDialog
+
+    dialog = SettingsDialog(config_manager)
+    updates = dialog._apply_config()
+
+    for key in ("stt_api_url", "llm_api_url", "stt_api_key", "llm_api_key"):
+        assert key in updates, key
+
+
+def test_dialog_save_writes_llm_url_to_disk(qapp, config_manager):
+    """AC-19: saving the dialog persists llm_api_url to settings.json."""
+    from src.gui.settings_dialog import SettingsDialog
+
+    dialog = SettingsDialog(config_manager)
+    dialog._llm_api_edit.setText("http://x:9")
+    dialog._save()
+
+    saved = json.loads(config_manager.config_file.read_text())
+    assert saved["llm_api_url"] == "http://x:9"
