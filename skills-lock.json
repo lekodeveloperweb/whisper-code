@@ -1,75 +1,85 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "brainstorming": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/brainstorming/SKILL.md",
-      "computedHash": "70e7d85feeb79fd150465f11691c9091234bfa56734076921a4424e387b854c1"
+      "computedHash": "80d46495f69ec4348954b182e06b46d0921e9b47282a3e70cb11463b2702f3ff",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "executing-plans": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/executing-plans/SKILL.md",
-      "computedHash": "8ef189ad226936a68510cea5b015bc01aacac1af9cb6cabf6473936e3d83a2d1"
+      "computedHash": "daf1d5a2c1b61443c5151f82de9e396d34eb0b62bd7062970653be289cc3cc1e",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "finishing-a-development-branch": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/finishing-a-development-branch/SKILL.md",
-      "computedHash": "4f571e7befb8b0946d9d7770232c818812412e9ab1dfb811f847edfba1fc6275"
+      "computedHash": "7e24d821d45b8f10773edd9f1a4be2fac90eedae4f8fc8e70e34e27e44d3f3c0",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "receiving-code-review": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/receiving-code-review/SKILL.md",
-      "computedHash": "59361179fc9225173e0c145ffd9bafbf9fdbf8b43ce3dc308497a0b4f83a6063"
+      "computedHash": "528d336858d6f7d22cfcb887a249409ce682cb7d37a939cb15a82f2576a35876",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "requesting-code-review": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/requesting-code-review/SKILL.md",
-      "computedHash": "004f340ae65811095d6a9bb0a759c87d0a8085c5e705dbb019b011626293d2e9"
+      "computedHash": "ac8e6c27013c8d8d6f72818f193e225a5bdab289e534e467851d945f10675146",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "systematic-debugging": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/systematic-debugging/SKILL.md",
-      "computedHash": "b5e4ebe02cc01ad69a987d01230562053d77a93938eefea7bbd0e4abffdfd98d"
+      "computedHash": "2daae7d5f2d83d6aea8bbe2192f09bca666b9cb951798bbd24c2754edc5fa820",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "test-driven-development": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/test-driven-development/SKILL.md",
-      "computedHash": "a4126a9c5f17be3c228aa9e5755898ade283448b86099f56f40852e8c14532be"
+      "computedHash": "f581644041610b5a7c9c0d5cdf7142e5a7b724cfdb993b03e0f56c1145c6bfe6",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "using-git-worktrees": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/using-git-worktrees/SKILL.md",
-      "computedHash": "48c8a1040e378e0cb7208107294e3afa9067b9370c3f33b49a443eb6b7528b0d"
+      "computedHash": "b69324cb5e5ba5b846fc2ae2811616008dc6f19858245100e472713190d4c9e4",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "verification-before-completion": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/verification-before-completion/SKILL.md",
-      "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
+      "computedHash": "09b0e3a4689c1c38a3b8fc6ef57a1d4165aa33c0013d546dbde9dd348941a319",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     },
     "writing-plans": {
       "source": "lekodeveloperweb/extrapowers",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "engineering/superpowers/writing-plans/SKILL.md",
-      "computedHash": "5715e118f739dd2f30dfb5f6b62002d9b7dcb7fd328c144da6cd5d0ef6f31538"
+      "computedHash": "2d40f0ab8fae145731bc36522d41a953a538da0c3d50259c6f1cd15a14774638",
+      "commit": "d4b27efdba79a8438f798003cb250a275cd639a3"
     }
   }
 }
