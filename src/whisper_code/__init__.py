@@ -1,6 +1,6 @@
 """Whisper-Code package."""
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # Import submodules so patch("src.whisper_code.cli.X") resolves
 from src.whisper_code import cli  # noqa: F401
