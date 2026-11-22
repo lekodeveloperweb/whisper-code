@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-11-22
+
+### Added
+
+- **Manual English and Portuguese transcription selection.** Settings discovers the configured model's advertised language capabilities and offers only supported English or Portuguese choices. The selected language is sent explicitly with each transcription request.
+- **Configured-model language discovery.** An authenticated `/v1/models` request checks the exact STT model ID; language selection remains manual, with no auto-detection or translation.
+
+### Changed
+
+- Fresh installs now default to the multilingual `Systran/faster-whisper-small` model. Existing `settings.json` model IDs are not migrated automatically.
+- Grammar refinement is instructed to preserve the input language and not translate.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added
