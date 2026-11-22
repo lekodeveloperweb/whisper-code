@@ -8,6 +8,18 @@ from PySide6.QtCore import Signal as pyqtSignal
 from requests.exceptions import RequestException as RequestsException
 
 from src.utils.auth_headers import auth_headers
+from src.utils.config_manager import DEFAULT_TRANSCRIPTION_LANGUAGE
+
+LANGUAGE_REQUEST_FIELD = "language"
+
+
+def transcription_form_data(model_name: str, language: str) -> dict[str, str]:
+    """Return the multipart scalar fields sent to the STT endpoint."""
+    return {
+        "model": model_name,
+        LANGUAGE_REQUEST_FIELD: language,
+    }
+
 
 HTTP_OK = 200
 
@@ -28,20 +40,28 @@ class APITranscriber(QThread):
     error = pyqtSignal(str)
     confidence_changed = pyqtSignal(float)
 
-    def __init__(self, api_url: str, model_name: str, api_key: str | None = None) -> None:
-        """Initialize the transcriber with API URL, model, and optional key.
+    def __init__(
+        self,
+        api_url: str,
+        model_name: str,
+        api_key: str | None = None,
+        language: str = DEFAULT_TRANSCRIPTION_LANGUAGE,
+    ) -> None:
+        """Initialize the transcriber with API URL, model, key, and language.
 
         Args:
             api_url: Base URL of the STT API (e.g. http://localhost:8080).
             model_name: Model identifier for transcription.
             api_key: Bearer token for the STT server; None/empty sends
                 no Authorization header.
+            language: Explicit transcription language code.
         """
         super().__init__()
         self.base_url: str = api_url.rstrip("/")
         self.api_endpoint: str = f"{self.base_url}/v1/audio/transcriptions"
         self.model_name: str = model_name
         self.api_key: str | None = api_key
+        self.language: str = language
         self.audio_data: bytes | None = None
         self.last_result: str = ""
 
@@ -64,6 +84,7 @@ class APITranscriber(QThread):
             error_cb=self.error.emit,
             confidence_cb=self.confidence_changed.emit,
             api_key=self.api_key,
+            language=self.language,
         )
         if result is not None:
             self.last_result = result
@@ -108,6 +129,7 @@ def transcribe(
     error_cb: TranscribeErrorCb | None = None,
     confidence_cb: TranscribeConfidenceCb | None = None,
     api_key: str | None = None,
+    language: str = DEFAULT_TRANSCRIPTION_LANGUAGE,
 ) -> str | None:
     """Core transcription logic. Extracted for testability.
 
@@ -122,6 +144,7 @@ def transcribe(
         error_cb: Callback invoked on errors.
         confidence_cb: Callback invoked with the confidence score.
         api_key: Bearer token; None/empty sends no Authorization header.
+        language: Explicit transcription language code; defaults to English.
 
     Returns:
         The transcribed text on success, None on failure.
@@ -132,7 +155,7 @@ def transcribe(
 
     try:
         files: dict[str, tuple[str, bytes, str]] = {"file": ("audio.wav", audio_data, "audio/wav")}
-        payload: dict[str, str] = {"model": model_name}
+        payload: dict[str, str] = transcription_form_data(model_name, language)
 
         response = requests.post(
             api_endpoint,

@@ -6,8 +6,9 @@ from collections.abc import Callable
 from typing import Any
 
 from pynput import keyboard
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QCoreApplication, QThread, Signal
 from PySide6.QtCore import Signal as pyqtSignal
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,7 +26,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.utils.config_manager import ConfigManager
+from src.core.api_language_discovery import LanguageDiscoveryError, fetch_model_languages
+from src.utils.config_manager import (
+    APP_LANGUAGE_OPTIONS,
+    DEFAULT_TRANSCRIPTION_LANGUAGE,
+    LANGUAGE_CONFIG_KEY,
+    ConfigManager,
+)
 
 logger = logging.getLogger("whisper")
 
@@ -84,6 +91,34 @@ def _format_hotkey(keys: list[Any]) -> str:
     return "+".join(parts)
 
 
+class _LanguageDiscoveryWorker(QThread):
+    languages_ready = Signal(list)
+    failed = Signal(str)
+
+    def __init__(
+        self,
+        stt_api_url: str,
+        model_id: str,
+        api_key: str | None,
+    ) -> None:
+        super().__init__()
+        self._stt_api_url = stt_api_url
+        self._model_id = model_id
+        self._api_key = api_key
+
+    def run(self) -> None:
+        try:
+            languages = fetch_model_languages(
+                self._stt_api_url,
+                self._model_id,
+                self._api_key,
+            )
+        except LanguageDiscoveryError as exc:
+            self.failed.emit(str(exc))
+            return
+        self.languages_ready.emit(languages)
+
+
 class SettingsDialog(QDialog):
     def __init__(
         self,
@@ -120,6 +155,26 @@ class SettingsDialog(QDialog):
         self._grammar_edit: QLineEdit = QLineEdit()
         self._quality_combo: QComboBox = QComboBox()
         self._quality_combo.addItems(["fast", "balanced", "accurate"])
+        saved_language = self._config.get(LANGUAGE_CONFIG_KEY)
+        self._saved_transcription_language: str = str(
+            saved_language or DEFAULT_TRANSCRIPTION_LANGUAGE
+        )
+        self._language_combo: QComboBox = QComboBox()
+        saved_label = next(
+            (
+                label
+                for code, label in APP_LANGUAGE_OPTIONS
+                if code == self._saved_transcription_language
+            ),
+            self._saved_transcription_language,
+        )
+        self._language_combo.addItem(saved_label, self._saved_transcription_language)
+        self._language_combo.setEnabled(False)
+        self._language_status: QLabel = QLabel("Checking model language capabilities…")
+        self._refresh_button: QPushButton = QPushButton("Refresh")
+        self._available_languages: list[str] = []
+        self._language_discovery_succeeded: bool = False
+        self._language_worker: _LanguageDiscoveryWorker | None = None
         self._voice_commands_check: QCheckBox = QCheckBox()
         self._recording_label: QLabel = QLabel("")
         self._is_recording_flag: bool = False
@@ -140,6 +195,9 @@ class SettingsDialog(QDialog):
             self._grammar_check,
             self._grammar_edit,
             self._quality_combo,
+            self._language_combo,
+            self._language_status,
+            self._refresh_button,
             self._voice_commands_check,
             self._recording_label,
         ]
@@ -148,8 +206,11 @@ class SettingsDialog(QDialog):
         self._populate_widgets()
 
         self._record_button.clicked.connect(self._record_hotkey)
+        self._language_combo.currentIndexChanged.connect(self._on_language_selection_changed)
+        self._refresh_button.clicked.connect(self._start_language_discovery)
         self.accepted.connect(self._save)
         self.rejected.connect(self._cancel)
+        self._start_language_discovery()
 
     def _setup_ui(self) -> None:
         """Build the settings dialog using Qt layouts for proper formatting."""
@@ -163,16 +224,16 @@ class SettingsDialog(QDialog):
         main_layout.addStretch()
 
         # OK/Cancel buttons
-        button_box = QDialogButtonBox(
+        self._button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        main_layout.addWidget(button_box)
+        main_layout.addWidget(self._button_box)
 
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
+        self._button_box.accepted.connect(self.accept)
+        self._button_box.rejected.connect(self.reject)
 
         # Store reference to prevent GC
-        self._widget_refs.append(button_box)
+        self._widget_refs.append(self._button_box)
 
     @staticmethod
     def _add_wide_row(form: QFormLayout, label: str, widget: QWidget) -> None:
@@ -188,6 +249,9 @@ class SettingsDialog(QDialog):
         self._add_wide_row(form, "API K&ey:", self._stt_key_edit)
         self._add_wide_row(form, "&Model Name:", self._model_edit)
         self._add_wide_row(form, "Model &Quality:", self._quality_combo)
+        self._add_wide_row(form, "&Language:", self._language_combo)
+        form.addRow(self._refresh_button)
+        form.addRow(self._language_status)
         return group
 
     def _build_llm_group(self) -> QGroupBox:
@@ -244,6 +308,132 @@ class SettingsDialog(QDialog):
             self._quality_combo.setCurrentIndex(idx)
         self._voice_commands_check.setChecked(bool(self._config.get("voice_commands_enabled")))
 
+    def _start_language_discovery(self) -> None:
+        if self._language_worker is not None and self._language_worker.isRunning():
+            return
+
+        self._language_discovery_succeeded = False
+        self._available_languages = []
+        self._language_combo.setEnabled(False)
+        self._language_status.setText("Checking model language capabilities…")
+        self._refresh_button.setText("Checking…")
+        self._refresh_button.setEnabled(False)
+        worker = _LanguageDiscoveryWorker(
+            self._api_edit.text(),
+            self._model_edit.text(),
+            self._stt_key_edit.text() or None,
+        )
+        worker.setParent(QCoreApplication.instance())
+        worker.languages_ready.connect(self._on_language_discovery_success)
+        worker.failed.connect(self._on_language_discovery_failed)
+        worker.finished.connect(self._on_language_worker_finished)
+        worker.finished.connect(worker.deleteLater)
+        self._language_worker = worker
+        worker.start()
+
+    def _on_language_worker_finished(self) -> None:
+        if self.sender() is not self._language_worker:
+            return
+        self._language_worker = None
+        self._refresh_button.setText("Refresh" if self._language_discovery_succeeded else "Retry")
+        self._refresh_button.setEnabled(True)
+
+    def _on_language_discovery_success(self, languages: list[str]) -> None:
+        self._language_discovery_succeeded = True
+        self._available_languages = list(languages)
+        self._refresh_button.setText("Refresh")
+        self._language_combo.blockSignals(True)
+        self._language_combo.clear()
+
+        if not languages:
+            saved_label = next(
+                (
+                    label
+                    for code, label in APP_LANGUAGE_OPTIONS
+                    if code == self._saved_transcription_language
+                ),
+                self._saved_transcription_language,
+            )
+            self._language_combo.addItem(saved_label, self._saved_transcription_language)
+            self._language_combo.setEnabled(False)
+            self._language_status.setText(
+                "Configured model supports neither English nor Portuguese."
+            )
+            self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+            self._language_combo.blockSignals(False)
+            return
+
+        for code, label in APP_LANGUAGE_OPTIONS:
+            if code in languages:
+                self._language_combo.addItem(label, code)
+
+        if self._saved_transcription_language not in languages:
+            self._language_combo.addItem(
+                f"{self._saved_transcription_language} (not supported by configured model)",
+                self._saved_transcription_language,
+            )
+            model = self._language_combo.model()
+            if isinstance(model, QStandardItemModel):
+                unavailable = model.item(self._language_combo.count() - 1)
+                if unavailable is not None:
+                    unavailable.setEnabled(False)
+            self._language_combo.setCurrentIndex(
+                self._language_combo.findData(self._saved_transcription_language)
+            )
+            self._language_status.setText("Select a language supported by the configured model.")
+            self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+        else:
+            self._language_combo.setCurrentIndex(
+                self._language_combo.findData(self._saved_transcription_language)
+            )
+            self._language_status.clear()
+            self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
+
+        self._language_combo.setEnabled(True)
+        self._language_combo.blockSignals(False)
+
+    def _on_language_discovery_failed(self, message: str) -> None:
+        safe_messages = {
+            "Unable to read model language capabilities",
+            "Invalid model-list response",
+            "Configured model was not found",
+            "Configured model is not an ASR model",
+            "Configured model has no valid language metadata",
+        }
+        safe_message = (
+            message if message in safe_messages else "Unable to read model language capabilities"
+        )
+        self._language_discovery_succeeded = False
+        self._available_languages = []
+        self._language_combo.blockSignals(True)
+        self._language_combo.clear()
+        saved_label = next(
+            (
+                label
+                for code, label in APP_LANGUAGE_OPTIONS
+                if code == self._saved_transcription_language
+            ),
+            self._saved_transcription_language,
+        )
+        self._language_combo.addItem(saved_label, self._saved_transcription_language)
+        self._language_combo.setCurrentIndex(0)
+        self._language_combo.setEnabled(False)
+        self._language_combo.blockSignals(False)
+        self._language_status.setText(safe_message)
+        self._refresh_button.setText("Retry")
+        self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
+
+    def _on_language_selection_changed(self) -> None:
+        if not self._language_discovery_succeeded:
+            return
+        selected_language = self._language_combo.currentData()
+        is_supported = selected_language in self._available_languages
+        self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(is_supported)
+        if is_supported:
+            self._language_status.clear()
+        else:
+            self._language_status.setText("Select a language supported by the configured model.")
+
     def _apply_config(self) -> dict[str, Any]:
         updates: dict[str, Any] = {}
         updates["stt_api_url"] = self._api_edit.text()
@@ -259,6 +449,10 @@ class SettingsDialog(QDialog):
         updates["grammar_model"] = self._grammar_edit.text()
         updates["model_quality"] = self._quality_combo.currentText()
         updates["voice_commands_enabled"] = self._voice_commands_check.isChecked()
+        if self._language_discovery_succeeded:
+            selected_language = self._language_combo.currentData()
+            if selected_language in self._available_languages:
+                updates[LANGUAGE_CONFIG_KEY] = selected_language
         return updates
 
     def _save(self) -> None:

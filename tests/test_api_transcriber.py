@@ -146,6 +146,53 @@ def test_confidence_emitted(mock_requests, app):
     assert result == "hello"
 
 
+MODEL_ID = "Systran/faster-whisper-small"
+
+
+def successful_transcription_response():
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"text": "Olá, mundo."}
+    return response
+
+
+def test_module_transcribe_posts_explicit_language():
+    from src.core.api_transcriber import transcribe
+
+    with patch(
+        "src.core.api_transcriber.requests.post",
+        return_value=successful_transcription_response(),
+    ) as post:
+        transcribe("http://stt", MODEL_ID, b"wav-bytes", language="pt")
+    assert post.call_args.kwargs["data"] == {"model": MODEL_ID, "language": "pt"}
+
+
+def test_api_transcriber_run_posts_its_language():
+    from src.core.api_transcriber import APITranscriber
+
+    transcriber = APITranscriber("http://stt", MODEL_ID, language="pt")
+    transcriber.audio_data = b"wav-bytes"
+    with patch(
+        "src.core.api_transcriber.requests.post",
+        return_value=successful_transcription_response(),
+    ) as post:
+        transcriber.run()
+    assert post.call_args.kwargs["data"] == {"model": MODEL_ID, "language": "pt"}
+
+
+def test_language_defaults_to_english_for_class_and_function():
+    from src.core.api_transcriber import APITranscriber, transcribe
+
+    transcriber = APITranscriber("http://stt", MODEL_ID)
+    assert transcriber.language == "en"
+    with patch(
+        "src.core.api_transcriber.requests.post",
+        return_value=successful_transcription_response(),
+    ) as post:
+        transcribe("http://stt", MODEL_ID, b"wav-bytes")
+    assert post.call_args.kwargs["data"] == {"model": MODEL_ID, "language": "en"}
+
+
 class TestAPITranscriber:
     def test_apitranscriber_init_sets_urls(self, mock_pyqt_signal):
         from src.core.api_transcriber import APITranscriber

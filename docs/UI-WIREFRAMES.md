@@ -85,7 +85,7 @@ Small, non-intrusive popups for status feedback.
 
 ## Settings Panel
 
-Configurable settings dialog for customization.
+Configurable settings dialog for customization. The `transcription_language` setting is selected manually (`en` English or `pt` Portuguese), can be overridden by `WHISPER_TRANSCRIPTION_LANGUAGE`, and must be advertised by the configured model (`Systran/faster-whisper-small` by default). Settings refreshes capabilities through authenticated `/v1/models`; No translation or auto-detection is performed. Existing settings.json model names are not migrated automatically.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -109,10 +109,11 @@ Configurable settings dialog for customization.
 │  │ Large V3 Turbo ▼                   │  │  ← Dropdown
 │  └───────────────────────────────────┘  │
 │                                         │
-│  Language                               │
-│  ┌───────────────────────────────────┐  │
-│  │ English (US) ▼                   │  │  ← Dropdown
-│  └───────────────────────────────────┘  │
+│  Transcription Language                 │
+│  ┌────────────────────────┐ [Refresh]  │
+│  │ English ▼              │            │  ← English / Portuguese
+│  └────────────────────────┘            │
+│  Checking configured model languages…  │  ← Retryable status
 │                                         │
 │  Theme                                  │
 │  ● Dark                                │  ← Radio

@@ -25,7 +25,12 @@ from src.core.hotkey_listener import HotkeyListener
 from src.gui.settings_dialog import SettingsDialog
 from src.gui.tray_menu import TrayMenu
 from src.gui.wave_overlay import WaveOverlay
-from src.utils.config_manager import STT_URL_DEFAULT, ConfigManager
+from src.utils.config_manager import (
+    DEFAULT_TRANSCRIPTION_LANGUAGE,
+    LANGUAGE_CONFIG_KEY,
+    STT_URL_DEFAULT,
+    ConfigManager,
+)
 from src.utils.logger import get_logger
 from src.utils.text_injector import TextInjector
 from src.utils.toast import ToastNotifier
@@ -106,7 +111,8 @@ class WhisperCodeApp:
         custom_model_name: str | None = self.config.get("model_name")  # type: ignore[assignment]
 
         resolved_model: str = resolve_model_name(model_quality, custom_model_name)
-        return APITranscriber(stt_url, resolved_model, stt_key)
+        language: str = str(self.config.get(LANGUAGE_CONFIG_KEY) or DEFAULT_TRANSCRIPTION_LANGUAGE)
+        return APITranscriber(stt_url, resolved_model, stt_key, language=language)
 
     def _make_grammar_checker(self) -> GrammarChecker:
         """Create GrammarChecker configured from settings.
@@ -450,7 +456,7 @@ class WhisperCodeApp:
             self.transcriber.api_key = new_key
 
     def _apply_model_config(self) -> None:
-        """Update STT model name if changed."""
+        """Update STT model name and transcription language if changed."""
         from src.utils.model_quality import resolve_model_name
 
         model_quality: str = str(self.config.get("model_quality") or "accurate")
@@ -459,6 +465,10 @@ class WhisperCodeApp:
         if resolved != self.transcriber.model_name:
             logger.debug(f"STT model changed to: {resolved}")
             self.transcriber.model_name = resolved
+
+        language = str(self.config.get(LANGUAGE_CONFIG_KEY) or DEFAULT_TRANSCRIPTION_LANGUAGE)
+        if language != self.transcriber.language:
+            self.transcriber.language = language
 
     def _apply_grammar_config(self) -> None:
         """Update grammar checker endpoint, model, and key if changed."""

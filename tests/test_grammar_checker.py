@@ -150,6 +150,23 @@ def test_payload_structure(mock_requests, app):
     assert payload["stream"] is False
 
 
+def test_portuguese_refinement_prompt_preserves_language(mock_requests, app):
+    from src.core.grammar_checker import check_grammar
+
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"choices": [{"message": {"content": "Olá, mundo."}}]}
+    mock_requests.post.return_value = response
+    check_grammar(
+        "http://llm/v1/chat/completions",
+        "grammar-model",
+        "Olá, mundo.",
+    )
+    payload = mock_requests.post.call_args.kwargs["json"]
+    assert "Preserve the input language. Do not translate." in payload["messages"][0]["content"]
+    assert payload["messages"][1]["content"] == "Olá, mundo."
+
+
 class TestGrammarChecker:
     def test_grammarchecker_init_sets_endpoints(self, mock_pyqt_signal):
         from src.core.grammar_checker import GrammarChecker

@@ -10,7 +10,8 @@ Whisper-Code configuration lives in `~/.config/whisper-code/settings.json`.
   "stt_api_key": null,
   "llm_api_url": null,
   "llm_api_key": null,
-  "model_name": "whisper-large-v3",
+  "model_name": "Systran/faster-whisper-small",
+  "transcription_language": "en",
   "hotkey": "Cmd+Ctrl+T",
   "auto_insert": true,
   "sample_rate": 16000,
@@ -25,7 +26,8 @@ Whisper-Code configuration lives in `~/.config/whisper-code/settings.json`.
 | `stt_api_key`       | string | `null`                  | Bearer token sent with transcription requests; empty or null sends no Authorization header            |
 | `llm_api_url`       | string | `null`                  | Base URL of the chat/completions API for grammar checking; unset or empty falls back to `stt_api_url` |
 | `llm_api_key`       | string | `null`                  | Bearer token sent with grammar-check requests; empty or null sends no Authorization header            |
-| `model_name`        | string | `whisper-large-v3`      | Model identifier for transcription                                                                    |
+| `model_name`        | string | `Systran/faster-whisper-small` | Model identifier for transcription                                                             |
+| `transcription_language` | string | `en`                | Manually selected transcription language (`en` English or `pt` Portuguese); must be supported by the configured model |
 | `hotkey`            | string | `Cmd+Ctrl+T`            | Global hotkey to toggle dictation                                                                     |
 | `auto_insert`       | bool   | `true`                  | Automatically inject text after transcription                                                         |
 | `sample_rate`       | int    | `16000`                 | Audio sample rate in Hz                                                                               |
@@ -42,12 +44,19 @@ Environment variables take precedence over file config. Prefix with `WHISPER_`:
 | `WHISPER_STT_API_KEY`   | `stt_api_key`       | _(none)_                               |
 | `WHISPER_LLM_API_URL`   | `llm_api_url`       | _(none — falls back to `stt_api_url`)_ |
 | `WHISPER_LLM_API_KEY`   | `llm_api_key`       | _(none)_                               |
-| `WHISPER_MODEL_NAME`    | `model_name`        | `whisper-large-v3`                     |
+| `WHISPER_MODEL_NAME`    | `model_name`        | `Systran/faster-whisper-small`         |
+| `WHISPER_TRANSCRIPTION_LANGUAGE` | `transcription_language` | `en`                      |
 | `WHISPER_HOTKEY`        | `hotkey`            | `Cmd+Ctrl+T`                           |
 | `WHISPER_AUTO_INSERT`   | `auto_insert`       | `true`                                 |
 | `WHISPER_SAMPLE_RATE`   | `sample_rate`       | `16000`                                |
 | `WHISPER_GRAMMAR_CHECK` | `use_grammar_check` | `true`                                 |
 | `WHISPER_GRAMMAR_MODEL` | `grammar_model`     | `gemma4-e4b-8b`                        |
+
+## Transcription language
+
+`transcription_language` supports `en` (English) and `pt` (Portuguese), and defaults to `en`. The selection is manual: Whisper-Code sends the saved code as the STT request's `language` field. It does not auto-detect speech language or translate the transcript; grammar refinement must preserve the input language and do not translate. Settings discovers the configured model's advertised languages from authenticated `/v1/models` metadata; a failed discovery preserves the saved choice and can be retried. Choose a model that advertises the selected language.
+
+Existing settings.json model names are not migrated automatically. Existing installations keep their configured model ID until the user changes it in Settings or configuration.
 
 Boolean values: `true`/`1` → `True`, `false`/`0` → `False`.
 

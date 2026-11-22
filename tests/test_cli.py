@@ -491,6 +491,19 @@ def test_on_transcription_success_without_grammar(qapp, mock_components, mock_co
     app.injector.inject_text.assert_called_once_with("hello world")
 
 
+def test_portuguese_transcript_is_injected_without_translation(qapp, mock_components, mock_config):
+    mock_config.get.side_effect = {"use_grammar_check": False}.get
+
+    from src.whisper_code.cli import WhisperCodeApp
+
+    app = WhisperCodeApp(app=qapp)
+    app.on_transcription_success("Olá, mundo.")
+
+    app.injector.inject_text.assert_called_once_with("Olá, mundo.")
+    app.grammar_checker.set_text.assert_not_called()
+    app.grammar_checker.start.assert_not_called()
+
+
 def test_on_transcription_success_empty_text(qapp, mock_components):
     from src.whisper_code.cli import WhisperCodeApp
 
@@ -731,6 +744,68 @@ def test_init_wires_stt_key_and_llm_fallback(qapp, mock_config):
     assert app.grammar_checker.api_endpoint == "http://a:1/v1/chat/completions"
     assert app.grammar_checker.api_key is None
     logging.getLogger("whisper").handlers.clear()
+
+
+def test_transcription_language_initializes_and_hot_reloads(qapp, mock_config):
+    from src.utils.config_manager import DEFAULT_CONFIG
+    from src.whisper_code.cli import WhisperCodeApp
+
+    model_id = "Systran/faster-whisper-small"
+    values = {**DEFAULT_CONFIG, "model_name": model_id, "transcription_language": "pt"}
+    mock_config.get.side_effect = values.get
+    mock_config.resolved_llm_url.return_value = "http://localhost:8080"
+
+    with (
+        patch("src.whisper_code.cli.AudioRecorder"),
+        patch("src.whisper_code.cli.GrammarChecker"),
+        patch("src.whisper_code.cli.WaveOverlay"),
+        patch("src.whisper_code.cli.TrayMenu"),
+        patch("src.whisper_code.cli.HotkeyListener"),
+        patch("src.whisper_code.cli.TextInjector"),
+        patch("src.whisper_code.cli.ToastNotifier"),
+    ):
+        app = WhisperCodeApp(app=qapp)
+
+    transcriber = app.transcriber
+    assert transcriber.model_name == model_id
+    assert transcriber.language == "pt"
+
+    values["transcription_language"] = "en"
+    app._apply_settings()
+
+    assert app.transcriber is transcriber
+    assert transcriber.model_name == model_id
+    assert transcriber.language == "en"
+
+
+def test_settings_acceptance_persists_selected_language_to_file(
+    qapp, mock_components, tmp_path, monkeypatch
+):
+    from src.utils.config_manager import DEFAULT_CONFIG, ConfigManager
+    from src.whisper_code.cli import WhisperCodeApp
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("WHISPER_TRANSCRIPTION_LANGUAGE", raising=False)
+    config = ConfigManager()
+    config.config = DEFAULT_CONFIG.copy()
+    config.save_config(config.config)
+
+    with patch("src.whisper_code.cli.ConfigManager", return_value=config):
+        app = WhisperCodeApp(app=qapp)
+
+    with patch(
+        "src.gui.settings_dialog._LanguageDiscoveryWorker.start",
+        lambda worker: worker.finished.emit(),
+    ):
+        app._open_settings()
+
+    dialog = app.settings_dialog
+    dialog._on_language_discovery_success(["en", "pt"])
+    dialog._language_combo.setCurrentIndex(dialog._language_combo.findData("pt"))
+    dialog.accept()
+
+    reloaded = ConfigManager()
+    assert reloaded.get("transcription_language") == "pt"
 
 
 def test_apply_settings_hot_reloads_llm_url(qapp, mock_components, mock_config):

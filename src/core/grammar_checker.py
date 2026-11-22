@@ -9,6 +9,8 @@ from PySide6.QtCore import Signal as pyqtSignal
 
 from src.utils.auth_headers import auth_headers
 
+GRAMMAR_LANGUAGE_PRESERVATION_INSTRUCTION = "Preserve the input language. Do not translate."
+
 HTTP_OK = 200
 
 CheckGrammarFinishedCb = Callable[[str], None]
@@ -50,7 +52,8 @@ def check_grammar(
         "for grammatical precision. Correct all capitalization, punctuation, and "
         "syntactical errors. Eliminate verbal disfluencies and repetitions. Keep the "
         "output clinical and concise. "
-        "Output ONLY the corrected string for the user input, anything else."
+        "Output ONLY the corrected string for the user input, anything else. "
+        f"{GRAMMAR_LANGUAGE_PRESERVATION_INSTRUCTION}"
     )
 
     payload: dict[str, Any] = {

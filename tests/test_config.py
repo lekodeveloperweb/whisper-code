@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from src.utils.config_manager import ConfigManager
@@ -9,7 +10,7 @@ SAMPLE_RATE_ALT = 8000
 def test_config_defaults():
     cm = ConfigManager()
     assert cm.get("stt_api_url") == "http://localhost:8080"
-    assert cm.get("model_name") == "whisper-large-v3"
+    assert cm.get("model_name") == "Systran/faster-whisper-small"
     assert cm.get("hotkey") == "Cmd+Ctrl+T"
     assert cm.get("auto_insert") is True
     assert cm.get("sample_rate") == SAMPLE_RATE
@@ -181,3 +182,29 @@ def test_env_var_override_api_keys():
         cm = ConfigManager()
     assert cm.get("stt_api_key") == "sk-stt"
     assert cm.get("llm_api_key") == "sk-llm"
+
+
+def isolate_config_home(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("WHISPER_TRANSCRIPTION_LANGUAGE", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_NAME", raising=False)
+    return tmp_path / ".config" / "whisper-code" / "settings.json"
+
+
+def test_transcription_language_and_model_defaults(monkeypatch, tmp_path):
+    isolate_config_home(monkeypatch, tmp_path)
+    config = ConfigManager()
+    assert config.get("transcription_language") == "en"
+    assert config.get("model_name") == "Systran/faster-whisper-small"
+
+
+def test_language_environment_override_and_saved_model_preservation(monkeypatch, tmp_path):
+    settings_path = isolate_config_home(monkeypatch, tmp_path)
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(
+        json.dumps({"transcription_language": "en", "model_name": "custom/model"})
+    )
+    monkeypatch.setenv("WHISPER_TRANSCRIPTION_LANGUAGE", "pt")
+    config = ConfigManager()
+    assert config.get("transcription_language") == "pt"
+    assert config.get("model_name") == "custom/model"

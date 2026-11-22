@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+from threading import Event
+from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QDialogButtonBox
 
+from src.gui.settings_dialog import SettingsDialog, _LanguageDiscoveryWorker
 from src.utils.config_manager import DEFAULT_CONFIG, ConfigManager
 
 SAMPLE_RATE = 16000
@@ -39,7 +44,7 @@ def test_settings_dialog_populates_from_config(qapp, config_manager):
     dialog._populate_widgets()
 
     assert dialog._api_edit.text() == "http://localhost:8080"
-    assert dialog._model_edit.text() == "whisper-large-v3"
+    assert dialog._model_edit.text() == "Systran/faster-whisper-small"
     assert dialog._hotkey_edit.text() == "Cmd+Ctrl+T"
     assert dialog._auto_insert_check.isChecked() is True
     assert dialog._sample_spin.value() == SAMPLE_RATE
@@ -318,3 +323,158 @@ def test_dialog_save_writes_llm_url_to_disk(qapp, config_manager):
 
     saved = json.loads(config_manager.config_file.read_text())
     assert saved["llm_api_url"] == "http://x:9"
+
+
+@pytest.fixture(autouse=True)
+def prevent_language_discovery_network(monkeypatch, request):
+    from src.gui import settings_dialog
+
+    worker_type = getattr(settings_dialog, "_LanguageDiscoveryWorker", None)
+    if (
+        worker_type is not None
+        and request.node.name != "test_settings_event_loop_runs_while_get_is_blocked"
+    ):
+        monkeypatch.setattr(worker_type, "start", lambda self: self.finished.emit())
+
+
+class FakeConfig:
+    def __init__(self, **overrides):
+        self.values = {**DEFAULT_CONFIG, **overrides}
+
+    def get(self, key):
+        return self.values.get(key)
+
+
+def make_dialog(qapp, saved_language="pt"):
+    from src.gui.settings_dialog import SettingsDialog
+
+    config = FakeConfig(transcription_language=saved_language)
+    with patch("PySide6.QtCore.QThread.start"):
+        return SettingsDialog(config)
+
+
+def ok_button(dialog):
+    return dialog._button_box.button(QDialogButtonBox.StandardButton.Ok)
+
+
+def test_language_combo_has_only_english_and_portuguese(qapp):
+    dialog = make_dialog(qapp)
+    dialog._on_language_discovery_success(["en", "pt"])
+    combo = dialog._language_combo
+    assert [(combo.itemData(i), combo.itemText(i)) for i in range(combo.count())] == [
+        ("en", "English"),
+        ("pt", "Portuguese"),
+    ]
+    assert combo.currentData() == "pt"
+
+
+def test_unsupported_saved_language_requires_valid_choice(qapp):
+    dialog = make_dialog(qapp, saved_language="pt")
+    dialog._on_language_discovery_success(["en"])
+    combo = dialog._language_combo
+    unavailable = next(i for i in range(combo.count()) if combo.itemData(i) == "pt")
+    assert not combo.model().item(unavailable).isEnabled()
+    assert not ok_button(dialog).isEnabled()
+    combo.setCurrentIndex(0)
+    dialog._on_language_selection_changed()
+    assert combo.currentData() == "en"
+    assert ok_button(dialog).isEnabled()
+
+
+def test_model_without_app_languages_blocks_accept(qapp):
+    dialog = make_dialog(qapp, saved_language="en")
+    dialog._on_language_discovery_success([])
+    assert not ok_button(dialog).isEnabled()
+    assert "neither English nor Portuguese" in dialog._language_status.text()
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Configured model is not an ASR model",
+        "Configured model has no valid language metadata",
+        "Configured model was not found",
+        "Unable to read model language capabilities",
+    ],
+)
+def test_discovery_failure_preserves_language_and_allows_other_save(qapp, message):
+    dialog = make_dialog(qapp, saved_language="pt")
+    dialog._on_language_discovery_failed(message)
+    assert dialog._language_combo.currentData() == "pt"
+    assert not dialog._language_combo.isEnabled()
+    assert dialog._language_status.text()
+    assert ok_button(dialog).isEnabled()
+    dialog._auto_insert_check.setChecked(False)
+    values = dialog._apply_config()
+    assert "transcription_language" not in values
+    assert values["auto_insert"] is False
+
+
+def test_settings_acceptance_includes_selected_language(qapp):
+    dialog = make_dialog(qapp)
+    dialog._on_language_discovery_success(["en", "pt"])
+    dialog._language_combo.setCurrentIndex(1)
+    assert dialog._apply_config()["transcription_language"] == "pt"
+
+
+def test_refresh_uses_current_url_key_and_model(qapp):
+    dialog = make_dialog(qapp)
+    dialog._api_edit.setText("http://changed-stt/")
+    dialog._stt_key_edit.setText("changed-key")
+    dialog._model_edit.setText("Systran/faster-whisper-small")
+    worker = MagicMock()
+    with patch("src.gui.settings_dialog._LanguageDiscoveryWorker", return_value=worker) as factory:
+        dialog._refresh_button.click()
+        assert not dialog._refresh_button.isEnabled()
+        dialog._start_language_discovery()
+    factory.assert_called_once_with(
+        "http://changed-stt/",
+        "Systran/faster-whisper-small",
+        "changed-key",
+    )
+    worker.start.assert_called_once_with()
+
+
+def test_http_401_with_api_key_is_not_exposed_in_error_text(qapp):
+    response = MagicMock()
+    response.raise_for_status.side_effect = requests.HTTPError("401")
+    errors = []
+    worker = _LanguageDiscoveryWorker("http://stt", "model", "secret-test-key")
+    worker.failed.connect(errors.append)
+    with patch("src.core.api_language_discovery.requests.get", return_value=response) as get:
+        worker.run()
+    assert get.call_args.kwargs["headers"] == {"Authorization": "Bearer secret-test-key"}
+    dialog = make_dialog(qapp)
+    dialog._on_language_discovery_failed(errors[0])
+    assert "secret-test-key" not in dialog._language_status.text()
+
+
+def test_settings_event_loop_runs_while_get_is_blocked(qapp):
+    started = Event()
+    release = Event()
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"data": []}
+
+    def blocked_get(*args, **kwargs):
+        started.set()
+        release.wait(2)
+        return response
+
+    dialog = None
+    try:
+        with patch("src.core.api_language_discovery.requests.get", side_effect=blocked_get):
+            dialog = SettingsDialog(FakeConfig(transcription_language="en"))
+            assert started.wait(1)
+            processed = []
+            QTimer.singleShot(0, lambda: processed.append(True))
+            qapp.processEvents()
+            assert processed == [True]
+    finally:
+        release.set()
+        if dialog is not None:
+            worker = dialog._language_worker
+            if worker is not None:
+                worker.wait(1000)
+            qapp.processEvents()
+            dialog.close()

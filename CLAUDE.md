@@ -101,8 +101,10 @@ Key design decisions:
 - Virtual env in `.venv/`. Lock file at `uv.lock`.
 - PRD in `docs/PRD.md`.
 - Console script: `whisper` (defined in `pyproject.toml`, points to `src.whisper_code.__main__:main`).
-- Config keys: `stt_api_url`, `stt_api_key`, `llm_api_url`, `llm_api_key`, `model_name`, `model_quality`, `hotkey`, `auto_insert`, `sample_rate`, `use_grammar_check`, `grammar_model`.
-- Env var overrides: `WHISPER_STT_API_URL`, `WHISPER_STT_API_KEY`, `WHISPER_LLM_API_URL`, `WHISPER_LLM_API_KEY`, `WHISPER_MODEL_NAME`, `WHISPER_MODEL_QUALITY`, `WHISPER_HOTKEY`, `WHISPER_AUTO_INSERT`, `WHISPER_SAMPLE_RATE`, `WHISPER_GRAMMAR_CHECK`, `WHISPER_GRAMMAR_MODEL`, `WHISPER_SILENCE_THRESHOLD`, `WHISPER_VOICE_COMMANDS`.
+- Config keys: `stt_api_url`, `stt_api_key`, `llm_api_url`, `llm_api_key`, `model_name`, `transcription_language`, `model_quality`, `hotkey`, `auto_insert`, `sample_rate`, `use_grammar_check`, `grammar_model`.
+- Env var overrides: `WHISPER_STT_API_URL`, `WHISPER_STT_API_KEY`, `WHISPER_LLM_API_URL`, `WHISPER_LLM_API_KEY`, `WHISPER_MODEL_NAME`, `WHISPER_TRANSCRIPTION_LANGUAGE`, `WHISPER_MODEL_QUALITY`, `WHISPER_HOTKEY`, `WHISPER_AUTO_INSERT`, `WHISPER_SAMPLE_RATE`, `WHISPER_GRAMMAR_CHECK`, `WHISPER_GRAMMAR_MODEL`, `WHISPER_SILENCE_THRESHOLD`, `WHISPER_VOICE_COMMANDS`.
+- Transcription language is selected manually (`en` English or `pt` Portuguese), defaults to `en`, and is checked against the configured model's authenticated `/v1/models` capabilities. No translation or auto-detection is performed; grammar refinement preserves the input language.
+- Fresh installs use `Systran/faster-whisper-small`. Existing settings.json model names are not migrated automatically.
 - `llm_api_url` unset/empty falls back to `stt_api_url` (single source of truth: `ConfigManager.resolved_llm_url()`). Empty keys send no Authorization header. BREAKING (v1.1): `api_url`/`WHISPER_API_URL` were removed — rename to `stt_api_url`/`WHISPER_STT_API_URL`.
 - Pre-commit hooks: `ruff` (lint) + `mypy` (type check) run automatically on commit.
 - Makefile targets: `make lint`, `make typecheck`, `make test`, `make all`.

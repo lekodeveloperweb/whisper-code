@@ -6,9 +6,19 @@ from pathlib import Path
 
 STT_URL_DEFAULT = "http://localhost:8080"
 
+APP_LANGUAGE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("en", "English"),
+    ("pt", "Portuguese"),
+)
+DEFAULT_TRANSCRIPTION_LANGUAGE = "en"
+LANGUAGE_CONFIG_KEY = "transcription_language"
+LANGUAGE_ENV_VAR = "WHISPER_TRANSCRIPTION_LANGUAGE"
+MULTILINGUAL_STT_MODEL_ID = "Systran/faster-whisper-small"
+
 DEFAULT_CONFIG: dict[str, str | int | bool | None] = {
     "stt_api_url": STT_URL_DEFAULT,
-    "model_name": "whisper-large-v3",
+    "model_name": MULTILINGUAL_STT_MODEL_ID,
+    LANGUAGE_CONFIG_KEY: DEFAULT_TRANSCRIPTION_LANGUAGE,
     "model_quality": "accurate",
     "hotkey": "Cmd+Ctrl+T",
     "auto_insert": True,
@@ -25,6 +35,7 @@ DEFAULT_CONFIG: dict[str, str | int | bool | None] = {
 ENV_MAP: dict[str, tuple[str, type]] = {
     "stt_api_url": ("WHISPER_STT_API_URL", str),
     "model_name": ("WHISPER_MODEL_NAME", str),
+    LANGUAGE_CONFIG_KEY: (LANGUAGE_ENV_VAR, str),
     "model_quality": ("WHISPER_MODEL_QUALITY", str),
     "hotkey": ("WHISPER_HOTKEY", str),
     "auto_insert": ("WHISPER_AUTO_INSERT", bool),
